@@ -1,0 +1,20 @@
+# Fælles requirements for alle MCP servere
+
+# Core MCP
+mcp>=1.0.0
+fastmcp==3.1.0
+
+# HTTP og async
+httpx>=0.28.1
+aiohttp==3.9.1
+uvicorn[standard]>=0.24.0
+starlette>=0.27.0
+
+# Utilities
+python-dotenv>=1.0.0
+PyYAML==6.0.1
+portalocker>=2.8.2
+python=>3.10
+
+# Docker support (hvis nødvendigt)
+docker==7.0.0
