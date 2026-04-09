@@ -14,7 +14,7 @@ starlette>=0.27.0
 python-dotenv>=1.0.0
 PyYAML==6.0.1
 portalocker>=2.8.2
-python>=3.13
+
 
 # Docker support (hvis nødvendigt)
 docker==7.0.0
