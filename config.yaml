@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+binds:
+  - port: 3000
+    listeners:
+      - routes:
+          - policies:
+              cors:
+                allowOrigins:
+                  - "*"
+                allowHeaders:
+                  - mcp-protocol-version
+                  - content-type
+                  - cache-control
+                exposeHeaders:
+                  - "Mcp-Session-Id"
+            backends:
+              - mcp:
+                  targets:
+                    - name: everything
+                      stdio:
+                        cmd: npx
+                        args: ["@modelcontextprotocol/server-everything"]
+    mcpAuthentication:
+      issuer: http://localhost:7080/realms/mcp
+      jwks:
+        url: http://localhost:7080/protocol/openid-connect/certs
+      provider:
+        keycloak: {}
+      resourceMetadata:
+        resource: http://localhost:3000/mcp
+        scopesSupported:
+          - read:all
+        bearerMethodsSupported:
+          - header
+          - body
+          - query
+        resourceDocumentation: http://localhost:3000/stdio/docs
+        resourcePolicyUri: http://localhost:3000/stdio/policies
