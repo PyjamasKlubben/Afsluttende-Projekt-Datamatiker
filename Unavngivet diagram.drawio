@@ -1,0 +1,16 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Side-1" id="eflEaP7UxSIpXuij_gSa">
+    <mxGraphModel dx="1414" dy="751" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rHhTeLUvDgWYUI7dxGfp-1" parent="1" style="text;whiteSpace=wrap;html=1;" value="&lt;br&gt;&lt;br&gt;Prompt i naturligt sprog&lt;br&gt;Vores system (software system)" vertex="1">
+          <mxGeometry height="80" width="210" x="270" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="rHhTeLUvDgWYUI7dxGfp-6" parent="1" style="sketch=0;aspect=fixed;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;shape=mxgraph.mscae.enterprise.user_permissions;fillColor=#0078D7;" value="&lt;span style=&quot;text-align: left; text-wrap-mode: wrap;&quot;&gt;Ejendomsadministrator (Person)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="47" x="180" y="280" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
