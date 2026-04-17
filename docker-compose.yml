@@ -1,15 +1,22 @@
-#docker run -p 127.0.0.1:8080:8080
-#-e KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-#quay.io/keycloak/keycloak:26.6.0
-#start-dev
-
 services:
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.6.0
-    container_name: keycloak
-    environment:
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-    command: start-dev
+  agentgateway:
+    container_name: agentgateway
+    restart: unless-stopped
+    image: cr.agentgateway.dev/agentgateway:v1.1.0
     ports:
-      - 8080:8080
+      - "3000:3000"
+      - "127.0.0.1:15000:15000"
+    volumes:
+      - ./config.yaml:/config.yaml
+    environment:
+      - ADMIN_ADDR=0.0.0.0:15000
+    command: ["-f", "/config.yaml"]
+    depends_on:
+      - mcp-everything
+
+  mcp-everything:
+    container_name: mcp-everything
+    image: node:22-alpine
+    command: npx -y @modelcontextprotocol/server-everything sse
+    ports:
+      - "3001:3001"
