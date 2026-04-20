@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from starlette.responses import JSONResponse
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:

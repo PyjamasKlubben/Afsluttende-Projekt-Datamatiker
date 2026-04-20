@@ -12,6 +12,10 @@ binds:
           - name: everything
             mcp:
               host: http://mcp-everything:3001/mcp
+          - name: utility-tools
+            mcp:
+              host: http://utility-tools:3003/mcp
+          statefulMode: stateful
       policies:
         cors:
           allowOrigins:
