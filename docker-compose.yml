@@ -41,7 +41,7 @@ services:
   mcp-everything:
     container_name: mcp-everything
     image: node:22-alpine
-    command: npx -y @modelcontextprotocol/server-everything sse
+    command: npx -y @modelcontextprotocol/server-everything streamableHttp
     ports:
       - "3001:3001"
 

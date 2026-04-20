@@ -2,14 +2,16 @@ binds:
 - port: 3000
   listeners:
   - routes:
-    - backends:
+    - hostnames: []
+      matches:
+      - path:
+          pathPrefix: /
+      backends:
       - mcp:
           targets:
           - name: everything
-            sse:
-              host: mcp-everything
-              port: 3001
-              path: /sse
+            mcp:
+              host: http://mcp-everything:3001/mcp
       policies:
         cors:
           allowOrigins:
@@ -20,9 +22,9 @@ binds:
           - Mcp-Session-Id
         mcpAuthentication:
           mode: strict
-          issuer: http://keycloak:8080/realms/mcp
+          issuer: http://localhost:8080/realms/mcp
           audiences:
-          - mcp_proxy
+          - myclient
           jwks:
             url: http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
           provider:
