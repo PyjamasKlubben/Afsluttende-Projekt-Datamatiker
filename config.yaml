@@ -12,9 +12,6 @@ binds:
           - name: everything
             mcp:
               host: http://mcp-everything:3001/mcp
-          - name: utility-tools
-            mcp:
-              host: http://utility-tools:3003/mcp
           statefulMode: stateful
       policies:
         cors:
@@ -26,15 +23,15 @@ binds:
           - Mcp-Session-Id
         mcpAuthentication:
           mode: strict
-          issuer: http://localhost:8080/realms/mcp
+          issuer: https://auth.petermikkelsen.dk/realms/mcp
           audiences:
-          - myclient
+          - agentgateway-client
           jwks:
             url: http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
           provider:
             keycloak: {}
           resourceMetadata:
-            resource: http://localhost:3000/mcp
+            resource: https://auth.petermikkelsen.dk/mcp
             scopesSupported:
             - profile
             - offline_access
