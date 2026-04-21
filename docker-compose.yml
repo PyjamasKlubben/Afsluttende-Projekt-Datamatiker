@@ -6,8 +6,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/certs:/nginx/certs/
       - ./nginx/conf.d:/etc/nginx/conf.d/
+      - letsencrypt:/etc/letsencrypt/
     depends_on:
       - agentgateway
       - mcp-everything
@@ -23,7 +23,7 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: "79.171.148.179"
+      KC_HOSTNAME: "https://auth.petermikkelsen.dk"
     ports:
       - "8080:8080"
     healthcheck:
@@ -82,3 +82,4 @@ services:
 
 volumes:
   keycloak_data:
+  letsencrypt:
