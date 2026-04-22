@@ -19,6 +19,7 @@ import portalocker
 from dotenv import load_dotenv
 load_dotenv()
 
+#TODO interface til helpers og queries
 
 # --------------------
 # Config

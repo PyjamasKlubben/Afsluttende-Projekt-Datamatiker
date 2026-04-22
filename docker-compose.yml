@@ -46,7 +46,7 @@ services:
       - ./config.yaml:/config.yaml
     environment:
       - ADMIN_ADDR=0.0.0.0:15000
-      - OIDC_ISSUER=https://auth.petermikkelsen.dk/realms/mcp
+      - OIDC_ISSUER=https://auth.petermikkelsen.dk/realms/mcp   
       - OIDC_JWKS_URL=http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
     command: ["-f", "/config.yaml"]
     depends_on:
@@ -61,7 +61,7 @@ services:
     command: npx -y @modelcontextprotocol/server-everything streamableHttp
     ports:
       - "3001:3001"
-
+      
   utility-tools:
     build:
       context: .
@@ -81,7 +81,7 @@ services:
       retries: 3
       start_period: 10s
     restart: always
-
+    
 volumes:
   keycloak_data:
   letsencrypt:
