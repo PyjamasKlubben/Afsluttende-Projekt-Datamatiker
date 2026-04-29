@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Side-1" id="mQg9A9UoMAvAaq3Q6v7c">
-    <mxGraphModel dx="1426" dy="1306" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1616" dy="1480" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -334,7 +334,7 @@
         <mxCell id="yzO_yPG8gkcTbzuNiNsP-113" parent="yzO_yPG8gkcTbzuNiNsP-110" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;div&gt;200 OK - alle tilgængelige&amp;nbsp;&lt;/div&gt;&lt;div&gt;MCP tools&lt;/div&gt;" vertex="1">
           <mxGeometry height="30" width="180" x="10" as="geometry" />
         </mxCell>
-        <mxCell id="yzO_yPG8gkcTbzuNiNsP-119" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="3.&amp;nbsp;" vertex="1">
+        <mxCell id="yzO_yPG8gkcTbzuNiNsP-119" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="3. MCP Tool Call&amp;nbsp;" vertex="1">
           <mxGeometry height="30" width="1240" x="40" y="905" as="geometry" />
         </mxCell>
         <mxCell id="yzO_yPG8gkcTbzuNiNsP-128" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yzO_yPG8gkcTbzuNiNsP-126" value="">
