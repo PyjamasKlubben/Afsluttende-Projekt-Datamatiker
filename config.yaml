@@ -16,18 +16,21 @@ binds:
                       mcp:
                         host: http://utility-tools:3003/mcp
             policies:
+              mcpAuthorization:
+                rules:
+                  - 'mcp.tool.target != "utility-tools" || (has(jwt.roles) && "utility-tools-access" in jwt.roles)'
               timeout:
                 requestTimeout: 30s
                 backendRequestTimeout: 30s
               cors:
-                allowOrigins: ['*']
-                allowHeaders: ['*']
-                exposeHeaders: ['Mcp-Session-Id']
+                allowOrigins: ["*"]
+                allowHeaders: ["*"]
+                exposeHeaders: ["Mcp-Session-Id"]
               mcpAuthentication:
                 mode: strict
                 issuer: https://auth.petermikkelsen.dk/realms/mcp
                 audiences:
-                - agentgateway-client 
+                  - agentgateway-client
                 jwks:
                   url: http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
                 provider:
