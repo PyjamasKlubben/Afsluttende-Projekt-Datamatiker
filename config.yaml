@@ -9,12 +9,21 @@ binds:
             backends:
               - mcp:
                   targets:
-                    - name: everything
-                      mcp:
-                        host: http://mcp-everything:3001/mcp
                     - name: utility-tools
                       mcp:
                         host: http://utility-tools:3003/mcp
+                    - name: financial-entry-tools
+                      mcp:
+                        host: http://financial-entry-tools:3002/mcp
+                    - name: email-tools
+                      mcp:
+                        host: http://email-tools:3005/mcp
+                    - name: cache-query-tools
+                      mcp:
+                        host: http://cache-query-tools:3004/mcp
+                    - name: n8n-tools
+                      mcp:
+                        host: http://n8n-tools:3001/mcp
             policies:
               mcpAuthorization:
                 rules:

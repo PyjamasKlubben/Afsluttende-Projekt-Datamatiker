@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Installer system dependencies (curl til healthcheck)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Installer uv
+RUN pip install uv==0.4.17
+
+# Kopiér requirements
+COPY requirements.txt .
+
+# Installer dependencies i system-miljøet
+RUN uv pip install --system --no-build -r requirements.txt
+
+# Kopiér kode
+COPY helpers_and_queries/ ./helpers_and_queries/
+COPY email-tools/email_tools.py .
+
+# Environment variabler
+ENV PORT=3005
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+EXPOSE 3005
+
+# Mere tolerant healthcheck
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3005/health || exit 1
+
+CMD ["python", "-u", "email_tools.py"]
