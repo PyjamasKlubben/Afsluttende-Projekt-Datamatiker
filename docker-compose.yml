@@ -55,17 +55,10 @@ services:
       mcp-everything:
         condition: service_started
 
-  mcp-everything:
-    container_name: mcp-everything
-    image: node:22-alpine
-    command: npx -y @modelcontextprotocol/server-everything streamableHttp
-    ports:
-      - "3001:3001"
-      
   utility-tools:
     build:
       context: .
-      dockerfile: utility-tools/Dockerfile.utility-tools
+      dockerfile: utilitytools/Dockerfile.utility-tools
     container_name: utility-tools
     ports:
       - "3003:3003"
@@ -81,7 +74,88 @@ services:
       retries: 3
       start_period: 10s
     restart: always
-    
+  
+  financial-entry-tools:
+    build:
+      context: .
+      dockerfile: financial-entry-tools/Dockerfile.financial-tools
+    container_name: financial-entry-tools
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  email-tools:
+    build:
+      context: .
+      dockerfile: email-tools/Dockerfile.email-tools
+    container_name: email-tools
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  cache-query-tools:
+    build:
+      context: .
+      dockerfile: cache-tools/Dockerfile.cache-query-tools
+    container_name: cache-query-tools
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  n8n-workflow-tools:
+    build:
+      context: .
+      dockerfile: n8n-workflow-tools/Dockerfile.n8n-workflow-tools
+    container_name: n8n-workflow-tools
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+
 volumes:
   keycloak_data:
   letsencrypt:
