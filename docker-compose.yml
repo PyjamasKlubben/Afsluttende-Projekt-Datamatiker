@@ -11,7 +11,7 @@ services:
     depends_on:
       agentgateway:
         condition: service_started
-      mcp-everything:
+      utility-tools:
         condition: service_started
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -52,7 +52,7 @@ services:
     depends_on:
       keycloak:
         condition: service_healthy
-      mcp-everything:
+      utility-tools:
         condition: service_started
 
   utility-tools:

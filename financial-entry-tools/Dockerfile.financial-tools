@@ -19,6 +19,7 @@ RUN uv pip install --system --no-build -r requirements.txt
 # Kopiér kode
 COPY helpers_and_queries/ ./helpers_and_queries/
 COPY financial-entry-tools/financial_entry_tools.py .
+COPY utilitytools/ ./utilitytools/
 
 # Environment variabler
 ENV PORT=3002

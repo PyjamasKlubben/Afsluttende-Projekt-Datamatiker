@@ -542,7 +542,7 @@ def main():
 # Optional: allow local running via `python email_tools.py`
 if __name__ == "__main__":
     mcp.run(
-        transport="sse",
+        transport="http",
         host="0.0.0.0",
         port=int(os.getenv("PORT", "3005"))
     )

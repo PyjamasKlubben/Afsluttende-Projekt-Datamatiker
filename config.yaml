@@ -35,6 +35,9 @@ binds:
                 allowOrigins: ["*"]
                 allowHeaders: ["*"]
                 exposeHeaders: ["Mcp-Session-Id"]
+              requestHeaderModifier:
+                add:
+                  Accept: "application/json, text/event-stream"
               mcpAuthentication:
                 mode: strict
                 issuer: https://auth.petermikkelsen.dk/realms/mcp

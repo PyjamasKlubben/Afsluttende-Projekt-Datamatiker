@@ -217,7 +217,7 @@ def main():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "3002"))
     mcp.run(
-        transport="sse",
+        transport="http",
         host="0.0.0.0",
         port=port
         )
