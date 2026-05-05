@@ -21,9 +21,9 @@ binds:
                     - name: cache-query-tools
                       mcp:
                         host: http://cache-query-tools:3004/mcp
-                    - name: n8n-tools
+                    - name: n8n-workflow-tools
                       mcp:
-                        host: http://n8n-tools:3001/mcp
+                        host: http://n8n-workflow-tools:3001/mcp
             policies:
               mcpAuthorization:
                 rules:
