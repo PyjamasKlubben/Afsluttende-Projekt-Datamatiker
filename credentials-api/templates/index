@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mine API-nøgler</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0e0f11;
+    --surface:   #16181c;
+    --border:    #2a2d34;
+    --accent:    #4f9cf9;
+    --accent-dim:#1e3a5f;
+    --danger:    #e05252;
+    --text:      #e8eaf0;
+    --muted:     #6b7280;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    min-height: 100vh;
+    display: grid;
+    place-items: start center;
+    padding: 3rem 1rem;
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+    border-left: 2px solid var(--accent);
+    padding-left: 1rem;
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+
+  header p {
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  /* ── Login panel ── */
+  #login-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2rem;
+  }
+
+  #login-panel p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+  }
+
+  /* ── Token bar ── */
+  .token-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .token-bar input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 0.6rem 0.75rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .token-bar input:focus { border-color: var(--accent); }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 0.6rem 1.1rem;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: var(--accent); color: var(--bg); }
+
+  .btn.danger {
+    border-color: var(--danger);
+    color: var(--danger);
+    padding: 0.35rem 0.7rem;
+    font-size: 0.72rem;
+  }
+
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+
+  /* ── Main panel ── */
+  #main-panel { display: none; }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  /* ── Add form ── */
+  .add-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .add-form input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    padding: 0.6rem 0.75rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .add-form input:focus { border-color: var(--accent); }
+  .add-form input::placeholder { color: var(--muted); }
+
+  /* ── Credentials list ── */
+  .cred-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .cred-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .cred-name {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  .cred-meta {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.2rem;
+  }
+
+  .empty {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    padding: 1.5rem 1rem;
+    border: 1px dashed var(--border);
+    text-align: center;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 0.75rem 1.25rem;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+  }
+
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.error { border-color: var(--danger); color: var(--danger); }
+
+  /* ── Status dot ── */
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-bottom: 2rem;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #3ecf6e;
+    box-shadow: 0 0 6px #3ecf6e88;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <h1>// mine api-nøgler</h1>
+    <p>Administrer dine personlige credentials til MCP-servere</p>
+  </header>
+
+  <!-- Login -->
+  <div id="login-panel">
+    <p>Indsæt dit Keycloak Bearer-token for at logge ind.<br>
+       Du finder det i din klients Authorization-header.</p>
+    <div class="token-bar">
+      <input type="password" id="token-input" placeholder="Bearer token…" />
+      <button class="btn" onclick="login()">Log ind</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main-panel">
+    <div class="status">
+      <span class="dot"></span>
+      <span id="user-label">—</span>
+    </div>
+
+    <p class="section-label">Tilføj nøgle</p>
+    <div class="add-form">
+      <input id="new-name"  placeholder="Navn  (fx OPENAI_API_KEY)" />
+      <input id="new-value" type="password" placeholder="Værdi" />
+      <button class="btn" onclick="addCredential()">Gem</button>
+    </div>
+
+    <p class="section-label">Gemte nøgler</p>
+    <div class="cred-list" id="cred-list">
+      <div class="empty">Ingen nøgler endnu</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let TOKEN = null;
+
+  function toast(msg, error = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (error ? ' error' : '');
+    setTimeout(() => el.className = '', 2500);
+  }
+
+  async function api(method, path, body) {
+    const opts = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    return r.status === 204 ? null : r.json();
+  }
+
+  async function login() {
+    TOKEN = document.getElementById('token-input').value.trim();
+    if (!TOKEN) return;
+    try {
+      const creds = await api('GET', '/me/credentials');
+      document.getElementById('login-panel').style.display = 'none';
+      document.getElementById('main-panel').style.display = 'block';
+      // Decode sub from JWT payload for display
+      try {
+        const payload = JSON.parse(atob(TOKEN.split('.')[1]));
+        document.getElementById('user-label').textContent =
+          payload.preferred_username || payload.email || payload.sub;
+      } catch {}
+      renderList(creds);
+    } catch (e) {
+      toast('Ugyldigt token – prøv igen', true);
+      TOKEN = null;
+    }
+  }
+
+  function renderList(creds) {
+    const el = document.getElementById('cred-list');
+    if (!creds.length) {
+      el.innerHTML = '<div class="empty">Ingen nøgler endnu</div>';
+      return;
+    }
+    el.innerHTML = creds.map(c => `
+      <div class="cred-row" id="row-${CSS.escape(c.key_name)}">
+        <div>
+          <div class="cred-name">${escHtml(c.key_name)}</div>
+          <div class="cred-meta">gemt ${c.created_at.slice(0,16).replace('T',' ')}</div>
+        </div>
+        <button class="btn danger" onclick="deleteCredential('${escHtml(c.key_name)}')">slet</button>
+      </div>
+    `).join('');
+  }
+
+  async function addCredential() {
+    const name  = document.getElementById('new-name').value.trim();
+    const value = document.getElementById('new-value').value.trim();
+    if (!name || !value) { toast('Udfyld både navn og værdi', true); return; }
+    try {
+      await api('POST', '/me/credentials', { key_name: name, key_value: value });
+      document.getElementById('new-name').value  = '';
+      document.getElementById('new-value').value = '';
+      toast(`✓ ${name} gemt`);
+      renderList(await api('GET', '/me/credentials'));
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function deleteCredential(name) {
+    try {
+      await api('DELETE', `/me/credentials/${encodeURIComponent(name)}`);
+      toast(`${name} slettet`);
+      renderList(await api('GET', '/me/credentials'));
+    } catch (e) { toast(e.message, true); }
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Allow Enter key in token input
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('token-input')
+      .addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  });
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Installer uv
+# Installer uv #TODO - ændre så alle dockerfiles ikke har versionsnummer af uv
 RUN pip install uv==0.4.17
 
 # Kopiér requirements

@@ -55,6 +55,27 @@ services:
       utility-tools:
         condition: service_started
 
+#Genereret af Claude 06-05-2026
+  credentials-service:
+    build:
+      context: .
+      dockerfile: credentials-api/Dockerfile.credentials-api
+    restart: unless-stopped
+    environment:
+      # Generer én gang med: python -c "import secrets; print(secrets.token_hex(32))"
+      CREDENTIALS_ENCRYPTION_KEY: "${CREDENTIALS_ENCRYPTION_KEY}"
+      KEYCLOAK_URL:   "${KEYCLOAK_URL}"    # fx http://keycloak:8080
+      KEYCLOAK_REALM: "${KEYCLOAK_REALM}"  # fx myrealm
+      DB_PATH: "/data/credentials.db"
+    volumes:
+      - credentials_data:/data
+    # Vigtigt: kun eksponeret internt – ikke tilgængeligt udefra
+    expose:
+      - "8001"
+    # Kun tilgængeligt via UI-proxy nedenfor eksternt
+    networks:
+      - internal
+
   utility-tools:
     build:
       context: .
@@ -159,3 +180,8 @@ services:
 volumes:
   keycloak_data:
   letsencrypt:
+  credentials_data:
+
+networks:
+  internal:
+    driver: bridge
