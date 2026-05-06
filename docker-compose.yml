@@ -75,6 +75,7 @@ services:
     # Kun tilgængeligt via UI-proxy nedenfor eksternt
     networks:
       - internal
+      - default
 
   utility-tools:
     build:

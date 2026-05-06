@@ -29,6 +29,7 @@ ENCRYPTION_KEY_RAW = os.environ["CREDENTIALS_ENCRYPTION_KEY"]
 KEYCLOAK_URL       = os.environ["KEYCLOAK_URL"]          # e.g. http://keycloak:8080
 KEYCLOAK_REALM     = os.environ["KEYCLOAK_REALM"]        # e.g. myrealm
 DB_PATH            = os.environ.get("DB_PATH", "/data/credentials.db")
+BASE_DIR           = os.path.dirname(os.path.abspath(__file__))
 
 # Derive a 32-byte AES key from the raw string
 def _derive_key(raw: str) -> bytes:
@@ -188,5 +189,54 @@ async def get_credentials_internal(user_id: str, request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def ui():
-    with open("/app/templates/index.html") as f:
+    with open(os.path.join(BASE_DIR, "templates", "index.html")) as f:
         return f.read()
+    
+
+# ── OIDC Callback & Config ────────────────────────────────────────────────────
+ 
+KEYCLOAK_PUBLIC_URL = os.environ.get("KEYCLOAK_PUBLIC_URL", KEYCLOAK_URL)
+UI_CLIENT_ID        = os.environ.get("UI_CLIENT_ID", "credentials-ui")
+UI_REDIRECT_URI     = os.environ.get("UI_REDIRECT_URI", "https://auth.petermikkelsen.dk/callback")
+ 
+ 
+@app.get("/config")
+async def get_config():
+    """Expose non-secret config to the UI so it can build the OIDC login URL."""
+    return {
+        "keycloak_url":   KEYCLOAK_PUBLIC_URL,
+        "keycloak_realm": KEYCLOAK_REALM,
+        "client_id":      UI_CLIENT_ID,
+        "redirect_uri":   UI_REDIRECT_URI,
+    }
+ 
+ 
+@app.get("/callback")
+async def oidc_callback(code: str, request: Request):
+    """
+    Keycloak redirects here after login with an authorization code.
+    We exchange it for a token and redirect the browser to / with the token.
+    """
+    redirect_uri = str(request.base_url) + "callback"
+    token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+ 
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(token_url, data={
+                "grant_type":   "authorization_code",
+                "client_id":    UI_CLIENT_ID,
+                "code":         code,
+                "redirect_uri": redirect_uri,
+            })
+ 
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Token exchange failed")
+ 
+        access_token = resp.json()["access_token"]
+        # Redirect til UI med tokenet som query param – JS gemmer det i sessionStorage
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"/?token={access_token}")
+ 
+    except httpx.RequestError as e:
+        logger.error("Token exchange failed: %s", e)
+        raise HTTPException(status_code=503, detail="Auth service unavailable")
