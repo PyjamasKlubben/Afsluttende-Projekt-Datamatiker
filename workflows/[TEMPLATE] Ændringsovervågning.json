@@ -1,0 +1,210 @@
+{
+  "name": "[TEMPLATE] Ændringsovervågning",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "32 11 * * 2"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        368
+      ],
+      "id": "c7804b53-74a0-4e64-9f54-ab36d6514fca",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.boligflow.dk/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "company",
+              "value": "ulrik-hansen-boligflow-demo-8NKQ"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"REPLACE_WITH_TESTED_QUERY\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        112,
+        368
+      ],
+      "id": "cb0098aa-a27b-4e01-a8be-bd3db1f387ff",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9iDtQLgbfWTPCEXU",
+          "name": "Boligflow API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// KONFIGURATION\n// ═══════════════════════════════════════════════════════════════\n\nconst SEND_EXISTING_ON_FIRST_RUN = false;\n// true  → send ALLE eksisterende ved første kørsel + nye fremadrettet\n// false → ignorer eksisterende, send KUN nye fremadrettet (default)\n\n// ═══════════════════════════════════════════════════════════════\n\nconst staticData = $getWorkflowStaticData('global');\nconst seenIds = new Set(staticData.seenIds || []);\n\n// Auto-detect data path fra GraphQL response\nconst dataObj = $input.first().json.data;\nconst dataKey = Object.keys(dataObj).find(k => dataObj[k]?.data && Array.isArray(dataObj[k].data));\nif (!dataKey) throw new Error('Kunne ikke finde data-array i GraphQL response.');\n\nconst allItems = dataObj[dataKey].data;\n\n// Find nye items (ukendte IDs)\nconst newItems = allItems.filter(item => !seenIds.has(item.id));\n\n// Opdater static data med nye IDs\nstaticData.seenIds = [...seenIds, ...newItems.map(item => item.id)];\n\n// Første kørsel\nif (!staticData.initialized) {\n  staticData.initialized = true;\n  if (!SEND_EXISTING_ON_FIRST_RUN) {\n    return []; // Stop stille - ingen mail sendes\n  }\n  // SEND_EXISTING_ON_FIRST_RUN = true: fortsæt - alle newItems er \"nye\"\n}\n\n// Ingen nye poster - stop stille\nif (newItems.length === 0) {\n  return [];\n}\n\n// ═══════════════════════════════════════════════════════════════\n// TILPAS: Byg HTML tabel ud fra de felter der er relevante\n// ═══════════════════════════════════════════════════════════════\n\nconst rows = newItems.map(item => `\n  <tr>\n    <td style=\"padding:8px;border:1px solid #ddd;\">${item.id}</td>\n  </tr>\n`).join('');\n\nconst html = `\n<p>${newItems.length} nye poster fundet:</p>\n<table style=\"border-collapse:collapse;font-family:sans-serif;font-size:14px;width:100%;\">\n  <thead>\n    <tr style=\"background:#15847F;color:white;\">\n      <th style=\"padding:8px;text-align:left;\">ID</th>\n    </tr>\n  </thead>\n  <tbody>${rows}</tbody>\n</table>\n`;\n\nreturn [{ json: { html, count: newItems.length } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        368
+      ],
+      "id": "b6d3e97a-adfb-4c49-b49a-0a900ae36081",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "fromEmail": "boligflowTEST@mail.com",
+        "toEmail": "placeholder@change.me",
+        "subject": "Ny indflytning",
+        "html": "=<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"font-family:'lucida sans unicode','lucida grande',sans-serif;\"><tr><td align=\"center\" style=\"padding:20px;\"><img src=\"https://demo.stripocdn.email/content/guids/497a0606-5367-460f-9c9c-8a0b17a753ad/images/image.png\" width=\"180\"></td></tr><tr><td style=\"padding:20px;\">{{ $json.html }}</td></tr></table>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        368
+      ],
+      "id": "144dd5a5-2a6a-4eb2-9326-df4034e0cfbc",
+      "name": "Send an Email",
+      "webhookId": "cb333672-cd71-4b4b-815c-8adc70023cc6",
+      "credentials": {
+        "smtp": {
+          "id": "mmsaGhUj6tdnVYzt",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🔹 FORMÅL: Overvåger ændringer i Boligflow data og sender kun email når der er NYE ændringer siden sidst.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🛑 STOP — LÆS DETTE FØR DU GØR NOGET\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nDu må IKKE kalde update_n8n_node_param eller konfigurere nogen node\nfør brugeren har bekræftet ADMIN-EMAIL i denne samtale.\n\n  [ ] ADMIN-EMAIL → modtager af fejlbeskeder (Send Error Email / toEmail)\n                    Dette er IKKE kunden — det er den person der fejlfikser workflows.\n\nADMIN-EMAIL kan ikke antages at være den samme som rapport-modtageren.\nSpørg eksplicit: \"Hvilken email skal modtage fejlbeskeder hvis workflow fejler?\"\nSkriv i dit svar: \"Jeg bruger ADMIN-EMAIL: ___\" inden du fortsætter.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nKONFIGURATION:\n- SEND_EXISTING_ON_FIRST_RUN = true\n  Brug når: \"send alle eksisterende + nye fremadrettet\"\n  \n- SEND_EXISTING_ON_FIRST_RUN = false  ← DEFAULT\n  Brug når: \"send kun nye lejere fremadrettet\"\n\n\n📋 KONFIGURATIONSINSTRUKS\n\n1. QUERY TIL HTTP REQUEST:\n   - Søg i cached queries med list_cached_queries\n   - Hvis ingen match: brug get_types/get_details_types\n   - Test ALTID med graphql() FØR du sætter query i HTTP Request\n   - ALDRIG filtre i GraphQL — hent ALLE data, filtrér i Code node\n\n2. CODE NODE:\n   - Al filtrering i JavaScript (fx items.filter(i => i.status === 'CANCELLED'))\n   - Change detection via $getWorkflowStaticData()\n   - VIGTIGT: Static data virker KUN ved schedule/trigger, IKKE manuel test\n   - Output: { html: \"<overskrift + tabel>\" } — KUN indhold, intet andet\n   - Brug #15847F som header-farve\n   - ❌ ALDRIG logo, <html>, <body>, wrapper eller branding i Code node\n   - Send Email indpakker automatisk {{ $json.html }} i logo+wrapper.\n     Branding i Code node = DOBBELT LOGO.\n\n3. SEND EMAIL:\n   - toEmail → rapport-modtagerens email (fra brugerens besked)\n   - Opdatér subject og fromEmail\n   - ❌ Rør IKKE html-feltet\n\n4. SEND ERROR EMAIL:\n   - toEmail → ADMIN-EMAIL (fra 🛑 STOP-tjekket ovenfor)\n   - ❌ Rør ikke andre felter\n\n5. SCHEDULE TRIGGER:\n   - Sæt interval (typisk hver time eller dagligt)\n",
+        "height": 400,
+        "width": 512
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -112
+      ],
+      "id": "513bbf87-3aa0-41da-ad5d-b14cdf56a0cc",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        624
+      ],
+      "id": "c9945194-640e-465c-b610-bc701dab5070",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "fromEmail": "boligflow@test.dk",
+        "toEmail": "foruser@change.me",
+        "subject": "⚠️ Dit Boligflow workflow er fejlet",
+        "html": "=<table width=\"100%\" style=\"font-family:'lucida sans unicode','lucida grande',sans-serif;\">\n  <tr>\n    <td align=\"center\" style=\"padding:20px;\">\n      <img src=\"https://demo.stripocdn.email/content/guids/497a0606-5367-460f-9c9c-8a0b17a753ad/images/image.png\" width=\"180\">\n    </td>\n  </tr>\n  <tr>\n    <td style=\"padding:20px;\">\n      <h3 style=\"color:#e74c3c;\">Workflow fejlet</h3>\n      <p>Dit workflow <strong>{{ $workflow.name }}</strong> er fejlet.</p>\n      <p>Fejl: {{ $json.error.message }}</p>\n      <p>Kontakt support eller bed din AI-assistent om at køre et health check.</p>\n    </td>\n  </tr>\n</table>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        624
+      ],
+      "id": "4cbd1eb1-71fc-4847-83b9-29c27e4195b3",
+      "name": "Send Error Email",
+      "webhookId": "845304c6-2e7f-47fd-a8ff-a2ee319cc01b",
+      "credentials": {
+        "smtp": {
+          "id": "mmsaGhUj6tdnVYzt",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d4b1f021-ba60-4da9-8296-5f3456084224",
+  "meta": {
+    "instanceId": "888ca9a2a4ecdec00b2f08d94a9e882378f6b040678d1a8f57a0fe0ce536212d"
+  },
+  "id": "tnioU9XlQSjsZDrRumiDs",
+  "tags": []
+}
