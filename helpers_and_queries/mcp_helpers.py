@@ -711,11 +711,11 @@ def get_emails_by_sender(
 # --------------------
 
 
-async def get_accounts(code: int) -> str:
+async def get_accounts(code: Optional[dict] = None) -> str:
     """
     Get accounts from Boligflow API.
     """
-    variables = {"code": code}
+    variables = {"code": code} if code else None
     result = await call_boligflow(GET_ACCOUNTS_QUERY, variables)
     return result.get("accounts", [])
 
@@ -726,25 +726,24 @@ async def get_dimensionables(dimension_type: str):
     return result.get("dimensionables", [])
 
 
-async def get_properties(filter: dict = None) -> str:
+async def get_properties(filter: Optional[dict] = None) -> str:
     """
     Get properties from Boligflow API.
     """
-    variables = {"filter": filter} if filter else {}
+    variables = {"filter": filter} if filter else None
     result = await call_boligflow(GET_PROPERTIES_QUERY, variables)
     return result.get("properties", [])
 # {"filter": {"_any":  {"name":  {"eq": "Holmparken 14 (DEMO)"}}}} virker til den query
 
 
-async def get_leases(filter: dict = None) -> str:
+async def get_leases(filter: Optional[dict] = None) -> str:
     """
     Get leases from Boligflow API.
     """
-    variables = {"filter": filter} if filter else {}
+    variables = {"filter": filter} if filter else None
     result = await call_boligflow(GET_LEASES_QUERY, variables)
     return result.get("leases", [])
 #{"filter": {"_any": {"floor": {"eq": "st"}}}} virker til den query
-
 
 
 # #TODO evt 

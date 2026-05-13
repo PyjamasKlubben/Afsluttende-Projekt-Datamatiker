@@ -78,9 +78,9 @@ async def list_unread_emails(
     Examples:
         list_unread_emails()
         list_unread_emails(subject_filter="Faktura")
-        list_unread_email("blank@gmail.com")
         list_unread_emails(sender_filter="blank@gmail.com")
-        list_unread_emails(subject_filter="Support", "blank@hotmail.com", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
+        list_unread_emails(sender_filter="blank@gmail.com")
+        list_unread_emails(subject_filter="Support", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
     """
     try:
         # Fetch unread emails (kør synkron IMAP i executor)
