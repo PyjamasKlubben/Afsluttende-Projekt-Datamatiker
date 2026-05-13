@@ -105,7 +105,6 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Depends(securit
 ALLOWED_CREDENTIALS: dict[str, str] = {
     "BOLIGFLOW_API_KEY": "Boligflow API-nøgle",
     "N8N_API_KEY":       "n8n API-nøgle",
-    "OPENAI_API_KEY":    "OpenAI API-nøgle",
     "EMAIL":             "Email-addresse",
     "EMAIL_PASSWORD":    "Email-appkode",
 }
