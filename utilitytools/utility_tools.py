@@ -35,7 +35,6 @@ API_KEY = os.environ.get("API_KEY")
 # --------------------
 # MCP Server
 # --------------------
-
 mcp = FastMCP("Utility Tools")
 
 
@@ -72,27 +71,45 @@ async def call_graphql(query: str, variables: Optional[str] = None) -> str:
 
 
 @mcp.tool()
-async def get_tenants() -> str:
-    """
-    Get tenants from Boligflow.
-    """
-    return await call_graphql(GET_TENANTS_QUERY)
-
-
-@mcp.tool()
 async def get_types() -> str:
     """
     Get types from Boligflow API via introspection.
     """
-    return await call_graphql(GET_TYPES_QUERY)
+    result = await call_boligflow(GET_TYPES_QUERY)
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
-async def get_details_types() -> str:
+async def get_details_types(type_name: str) -> str:
     """
     Get details of types from Boligflow API via introspection.
     """
-    return await call_graphql(GET_TYPE_DETAILS_QUERY)
+    variables = {"typeName": type_name}
+    result = await call_boligflow(GET_TYPE_DETAILS_QUERY, variables)
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+async def get_input_type_details(type_name: str) -> str:
+    """
+    Get details about a specific GraphQL input type to understand what fields are required.
+    Useful for discovering the correct structure for mutations.
+    
+    Args:
+        type_name: Name of the input type (e.g., "CreateInspectionInput", "CreateFileInput")
+    """
+    variables = {"typeName": type_name}
+    result = await call_boligflow(GET_INPUT_TYPE_QUERY, variables)
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+async def get_tenants() -> str:
+    """
+    Get tenants from Boligflow.
+    """
+    result = await call_boligflow(GET_TENANTS_QUERY)
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
@@ -122,114 +139,41 @@ async def create_file(
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
-@mcp.tool()
-async def create_orphaned_file(
-    filename: str,
-    content_base64: str,
-    mime_type: str = "application/pdf"
-) -> str:
-    """
-    Create an orphaned file (not attached to any resource yet) in Boligflow.
-    Useful for uploading files that will be attached later.
-    
-    Args:
-        filename: Name of the file
-        content_base64: File content encoded as base64
-        mime_type: MIME type (e.g., 'application/pdf', 'image/jpeg')
-    """
-    
-    variables = {
-        "input": {
-            "filename": filename,
-            "content": content_base64,
-            "mime_type": mime_type
-        }
-    }
-    
-    result = await call_boligflow(CREATE_ORPHANED_FILE_MUTATION, variables)
-    return json.dumps(result, indent=2, ensure_ascii=False)
 
-
-@mcp.tool()
-async def get_input_type_details(type_name: str) -> str:
-    """
-    Get details about a specific GraphQL input type to understand what fields are required.
-    Useful for discovering the correct structure for mutations.
+#TODO - undersøg hvad den gør:
+# har prøvet at udkommentere den, for at se om den mangler nogle steder
+# @mcp.tool()
+# async def create_orphaned_file(
+#     filename: str,
+#     content_base64: str,
+#     mime_type: str = "application/pdf"
+# ) -> str:
+#     """
+#     Create an orphaned file (not attached to any resource yet) in Boligflow.
+#     Useful for uploading files that will be attached later.
     
-    Args:
-        type_name: Name of the input type (e.g., "CreateInspectionInput", "CreateFileInput")
-    """
+#     Args:
+#         filename: Name of the file
+#         content_base64: File content encoded as base64
+#         mime_type: MIME type (e.g., 'application/pdf', 'image/jpeg')
+#     """
     
-    variables = {"typeName": type_name}
+#     variables = {
+#         "input": {
+#             "filename": filename,
+#             "content": content_base64,
+#             "mime_type": mime_type
+#         }
+#     }
     
-    result = await call_boligflow(GET_INPUT_TYPE_QUERY, variables)
-    return json.dumps(result, indent=2, ensure_ascii=False)
+#     result = await call_boligflow(CREATE_ORPHANED_FILE_MUTATION, variables)
+#     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 
-# --------------------
-# Debug Tools (kept from original)
-# --------------------
 
-@mcp.tool()
-async def verify_record(record_id: str, record_type: str = "Lease") -> str:
-    """
-    Verify that a record exists in Boligflow before uploading.
-    
-    Args:
-        record_id: ID of record to verify
-        record_type: Type of record (Lease, Case, Project, etc.)
-    
-    Examples:
-        verify_record("0199955a-530e-71f8-a8ee-1592547cbe36", "Lease")
-        verify_record("12345", "Case")
-    """
-    query = f"""
-    query {{
-        {record_type.lower()}(id: "{record_id}") {{
-            id
-            __typename
-        }}
-    }}
-    """
-    
-    try:
-        result = await call_boligflow(query)
-        
-        if "errors" in result:
-            return json.dumps({
-                "exists": False,
-                "error": "GraphQL errors",
-                "details": result["errors"]
-            }, indent=2, ensure_ascii=False)
-        
-        if "data" in result:
-            record_data = result["data"].get(record_type.lower())
-            
-            if record_data is None:
-                return json.dumps({
-                    "exists": False,
-                    "message": f"{record_type} with ID {record_id} not found"
-                }, indent=2, ensure_ascii=False)
-            
-            return json.dumps({
-                "exists": True,
-                "record_type": record_data.get("__typename"),
-                "record_id": record_data.get("id"),
-                "message": f"{record_type} exists and is accessible"
-            }, indent=2, ensure_ascii=False)
-        
-        return json.dumps({
-            "exists": False,
-            "message": "Unexpected response format",
-            "response": result
-        }, indent=2, ensure_ascii=False)
-        
-    except Exception as e:
-        return json.dumps({
-            "exists": False,
-            "error": str(e)
-        }, indent=2, ensure_ascii=False)
+
+
 
 
 

@@ -1,14 +1,7 @@
-FROM python:3.11-slim
+#base image der indeholder python image og uv version
+FROM afsluttende-projekt-base:latest
 
 WORKDIR /app
-
-# Installer system dependencies (curl til healthcheck)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Installer uv #TODO - ændre så alle dockerfiles ikke har versionsnummer af uv
-RUN pip install uv==0.4.17
 
 # Kopiér requirements
 COPY requirements.txt .

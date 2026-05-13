@@ -42,8 +42,7 @@ CACHE_FILE = Path(__file__).parent / "query_cache.json"
 # --------------------
 # MCP Server
 # --------------------
-
-mcp = FastMCP("BF Praktik n8n workflow tools")
+mcp = FastMCP("n8n Workflow Tools")
 
 
 # --------------------

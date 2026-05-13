@@ -2,21 +2,9 @@ import logging
 import os
 import json
 import sys
-import httpx
-from typing import Any, Dict, Optional, List
-import imaplib
-import email
-from email.header import decode_header
-from email.utils import parseaddr
-import base64
-import re
-import time
-from datetime import datetime
+from typing import Optional
 from pathlib import Path
-
-#import mcp
 from starlette.responses import JSONResponse
-# from mcp.server.fastmcp import FastMCP
 from fastmcp import FastMCP
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,11 +13,9 @@ if str(ROOT) not in sys.path:
 
 # Import from package when running in Docker, from relative when running locally
 try:
-    from helpers_and_queries.mcp_tools_queries import CREATE_FILE_MUTATION
-    from helpers_and_queries.mcp_helpers import upload_attachment_to_boligflow, create_eml_file, get_unread_emails, mark_email_as_read, upload_email_to_boligflow, get_emails_by_sender
+    from helpers_and_queries.mcp_helpers import upload_attachment_to_boligflow, get_unread_emails, mark_email_as_read, upload_email_to_boligflow, get_emails_by_sender
 except ImportError:
-    from helpers_and_queries.mcp_tools_queries import CREATE_FILE_MUTATION
-    from helpers_and_queries.mcp_helpers import upload_attachment_to_boligflow, create_eml_file, get_unread_emails, mark_email_as_read, upload_email_to_boligflow
+    from helpers_and_queries.mcp_helpers import upload_attachment_to_boligflow, get_unread_emails, mark_email_as_read, upload_email_to_boligflow, get_emails_by_sender
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -66,20 +52,7 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "")
 # --------------------
 # MCP Server
 # --------------------
-#mcp = FastMCP("BF Praktik")
-mcp = FastMCP("BF Praktik email tools")
-
-
-@mcp.tool()
-async def debug_env_vars() -> str:
-    """Debug tool to check environment variables"""
-    import os
-    return json.dumps({
-        "IMAP_SERVER": os.getenv("IMAP_SERVER"),
-        "IMAP_PORT": os.getenv("IMAP_PORT"),
-        "EMAIL_USER": os.getenv("EMAIL_USER"),
-        "EMAIL_PASSWORD": "***" if os.getenv("EMAIL_PASSWORD") else None,
-    }, indent=2)
+mcp = FastMCP("Email Tools")
 
 
 # --------------------
@@ -155,6 +128,83 @@ async def list_unread_emails(
             "success": False,
             "error": str(e)
         }, indent=2, ensure_ascii=False)
+
+
+
+@mcp.tool()
+async def list_emails_by_sender(
+    sender_filter: Optional[str] = None,
+    subject_filter: Optional[str] = None,
+    max_emails: int = 20,
+    search_limit: int = 200
+) -> str:
+    """
+    List ALL emails (read + unread), filtered by sender and/or subject.
+    Args:
+        subject_filter: Optional text that should be in subject
+        sender_filter: Optional email address that should be from sender
+        max_emails: Maximum number of emails to list - default: 20
+        search_limit: Maximum number of unread emails to search through - default: 100
+    
+    Examples:
+        list_unread_emails()
+        list_unread_emails(subject_filter="Faktura")
+        list_unread_emails(sender_filter="blank@gmail.com")
+        list_unread_emails(subject_filter="Support", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
+
+    Returns metadata only.
+    """
+
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+
+        emails, emails_searched = await loop.run_in_executor(
+            None,
+            get_emails_by_sender,
+            sender_filter,
+            subject_filter,
+            max_emails,
+            search_limit
+        )
+
+        if not emails:
+            msg = "No emails found"
+            if sender_filter:
+                msg += f" from sender containing: '{sender_filter}'"
+            if subject_filter:
+                msg += f" with subject containing: '{subject_filter}'"
+
+            return json.dumps({
+                "success": True,
+                "count": 0,
+                "emails_searched": emails_searched,
+                "message": msg
+            }, indent=2, ensure_ascii=False)
+
+        email_list = []
+        for email_data in emails:
+            email_list.append({
+                "subject": email_data['subject'],
+                "from": email_data['from_email'],
+                "date": email_data['date'],
+                "attachments_count": len(email_data['attachments']),
+                "id": email_data['id']
+            })
+
+        return json.dumps({
+            "success": True,
+            "count": len(email_list),
+            "emails_searched": emails_searched,
+            "emails": email_list
+        }, indent=2, ensure_ascii=False)
+
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, indent=2, ensure_ascii=False)
+
 
 
 @mcp.tool()
@@ -439,82 +489,6 @@ async def upload_email_with_attachments(
             "error": str(e)
         }, indent=2, ensure_ascii=False)
     
-
-
-@mcp.tool()
-async def list_emails_by_sender(
-    sender_filter: Optional[str] = None,
-    subject_filter: Optional[str] = None,
-    max_emails: int = 20,
-    search_limit: int = 200
-) -> str:
-    """
-    List ALL emails (read + unread), filtered by sender and/or subject.
-    Args:
-        subject_filter: Optional text that should be in subject
-        sender_filter: Optional email address that should be from sender
-        max_emails: Maximum number of emails to list - default: 20
-        search_limit: Maximum number of unread emails to search through - default: 100
-    
-    Examples:
-        list_unread_emails()
-        list_unread_emails(subject_filter="Faktura")
-        list_unread_emails(sender_filter="blank@gmail.com")
-        list_unread_emails(subject_filter="Support", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
-
-    Returns metadata only.
-    """
-
-    try:
-        import asyncio
-        loop = asyncio.get_event_loop()
-
-        emails, emails_searched = await loop.run_in_executor(
-            None,
-            get_emails_by_sender,
-            sender_filter,
-            subject_filter,
-            max_emails,
-            search_limit
-        )
-
-        if not emails:
-            msg = "No emails found"
-            if sender_filter:
-                msg += f" from sender containing: '{sender_filter}'"
-            if subject_filter:
-                msg += f" with subject containing: '{subject_filter}'"
-
-            return json.dumps({
-                "success": True,
-                "count": 0,
-                "emails_searched": emails_searched,
-                "message": msg
-            }, indent=2, ensure_ascii=False)
-
-        email_list = []
-        for email_data in emails:
-            email_list.append({
-                "subject": email_data['subject'],
-                "from": email_data['from_email'],
-                "date": email_data['date'],
-                "attachments_count": len(email_data['attachments']),
-                "id": email_data['id']
-            })
-
-        return json.dumps({
-            "success": True,
-            "count": len(email_list),
-            "emails_searched": emails_searched,
-            "emails": email_list
-        }, indent=2, ensure_ascii=False)
-
-    except Exception as e:
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        }, indent=2, ensure_ascii=False)
-
 
 
 # --------------------

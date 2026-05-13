@@ -39,9 +39,7 @@ CACHE_FILE = Path(__file__).parent / "query_cache.json"
 # --------------------
 # MCP Server
 # --------------------
-
-mcp = FastMCP("BF Praktik cache query tools")
-
+mcp = FastMCP("Cache Query Tools")
 
 
 # --------------------

@@ -1,17 +1,9 @@
 import os
 import json
 import sys
-import httpx
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 from pathlib import Path
-import imaplib
-import email
-from email.header import decode_header
-from email.utils import parseaddr
-import base64
-import re
-import time
-from datetime import datetime
+
 
 import mcp
 from starlette.responses import JSONResponse
@@ -49,7 +41,7 @@ API_KEY = os.getenv("API_KEY")
 # MCP Server
 # --------------------
 
-mcp = FastMCP("BF Praktik financial entry tools")
+mcp = FastMCP("Financial Entry Tools")
 
 
 # --------------------
@@ -162,35 +154,6 @@ async def create_financial_entry(
     result = await call_boligflow(CREATE_JOURNAL_ENTRY_MUTATION, variables)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
-
-@mcp.tool()
-async def get_accounts(code: int) -> str:
-    """
-    Get accounts from Boligflow API.
-    """
-    variables = {"code": code}
-    return await call_graphql(GET_ACCOUNTS_QUERY, variables)
-
-
-@mcp.tool()
-async def get_properties(filter: dict = None) -> str:
-    """
-    Get properties from Boligflow API.
-    """
-    variables = {"filter": filter} if filter else {}
-    return await call_graphql(GET_PROPERTIES_QUERY, variables)
-
-# {"filter": {"_any":  {"name":  {"eq": "Holmparken 14 (DEMO)"}}}} virker til den query
-
-@mcp.tool()
-async def get_leases(filter: dict = None) -> str:
-    """
-    Get leases from Boligflow API.
-    """
-    variables = {"filter": filter} if filter else {}
-    return await call_graphql(GET_LEASES_QUERY, variables)
-
-#{"filter": {"_any": {"floor": {"eq": "st"}}}} virker til den query
 
 # --------------------
 # Health Check Route

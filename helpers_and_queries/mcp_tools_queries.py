@@ -443,18 +443,18 @@ GET_TENANTS_QUERY = """
 
 
 
-CREATE_ORPHANED_FILE_MUTATION = """
-    mutation CreateOrphanedFile($input: CreateOrphanedFileInput!) {
-      createOrphanedFile(input: $input) {
-        id
-        filename
-        mime_type
-        size
-        url
-        created_at
-      }
-    }
-    """
+# CREATE_ORPHANED_FILE_MUTATION = """
+#     mutation CreateOrphanedFile($input: CreateOrphanedFileInput!) {
+#       createOrphanedFile(input: $input) {
+#         id
+#         filename
+#         mime_type
+#         size
+#         url
+#         created_at
+#       }
+#     }
+#     """
 
 GET_INPUT_TYPE_QUERY = """
     query GetInputType($typeName: String!) {

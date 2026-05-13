@@ -12,14 +12,14 @@ import re
 import time
 from datetime import datetime
 
-from .mcp_tools_queries import CREATE_FILE_MUTATION, GET_ACCOUNTS_QUERY, GET_DIMENSIONABLES_QUERY, GET_PROPERTIES_QUERY, GET_LEASES_QUERY
+from .mcp_tools_queries import CREATE_FILE_MUTATION, GET_ACCOUNTS_QUERY, GET_DIMENSIONABLES_QUERY, GET_PROPERTIES_QUERY, GET_LEASES_QUERY, GET_TYPES_QUERY, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY
 
 import portalocker
 
 from dotenv import load_dotenv
 load_dotenv()
 
-#TODO interface til helpers og queries
+# #TODO interface til helpers og queries
 
 # --------------------
 # Config
@@ -180,7 +180,9 @@ def _is_template(workflow: Dict[str, Any]) -> bool:
     """Check if a workflow is a protected template."""
     return workflow.get("name", "").startswith(TEMPLATE_PREFIX)
 
-
+# #TODO - undersøg hvad forskellen er på denne og call_graphql
+#call_graphql kalder denne som helper - derfor begge er nødvendige
+#logikken til caching flyttes ind i helpers og kalder andre metoder gennem denne
 async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Call Boligflow GraphQL API"""
     if not API_KEY:
@@ -709,8 +711,12 @@ def get_emails_by_sender(
 # --------------------
 
 
-async def get_accounts():
-    result = await call_boligflow(GET_ACCOUNTS_QUERY)
+async def get_accounts(code: int) -> str:
+    """
+    Get accounts from Boligflow API.
+    """
+    variables = {"code": code}
+    result = await call_boligflow(GET_ACCOUNTS_QUERY, variables)
     return result.get("accounts", [])
 
 
@@ -720,18 +726,28 @@ async def get_dimensionables(dimension_type: str):
     return result.get("dimensionables", [])
 
 
-async def get_properties():
-    result = await call_boligflow(GET_PROPERTIES_QUERY)
+async def get_properties(filter: dict = None) -> str:
+    """
+    Get properties from Boligflow API.
+    """
+    variables = {"filter": filter} if filter else {}
+    result = await call_boligflow(GET_PROPERTIES_QUERY, variables)
     return result.get("properties", [])
+# {"filter": {"_any":  {"name":  {"eq": "Holmparken 14 (DEMO)"}}}} virker til den query
 
 
-async def get_leases():
-    result = await call_boligflow(GET_LEASES_QUERY)
+async def get_leases(filter: dict = None) -> str:
+    """
+    Get leases from Boligflow API.
+    """
+    variables = {"filter": filter} if filter else {}
+    result = await call_boligflow(GET_LEASES_QUERY, variables)
     return result.get("leases", [])
+#{"filter": {"_any": {"floor": {"eq": "st"}}}} virker til den query
 
 
 
-#TODO evt 
+# #TODO evt 
 # list_properties
 
 # list_leases
@@ -743,3 +759,87 @@ async def get_leases():
 #Kan tilføjes så der valideres
 # await validate_account(debet_konto_id) 
 # await validate_account(kredit_konto_id)
+
+
+
+# --------------------
+# Utility Helper Functions
+# --------------------
+
+
+
+# --------------------
+# Debug Helper Functions
+# --------------------
+
+#TODO - kaldes ikke lige nu - flyttet hertil fra utility_tools
+async def verify_record(record_id: str, record_type: str = "Lease") -> str:
+    """
+    Verify that a record exists in Boligflow before uploading.
+    
+    Args:
+        record_id: ID of record to verify
+        record_type: Type of record (Lease, Case, Project, etc.)
+    
+    Examples:
+        verify_record("0199955a-530e-71f8-a8ee-1592547cbe36", "Lease")
+        verify_record("12345", "Case")
+    """
+    query = f"""
+    query {{
+        {record_type.lower()}(id: "{record_id}") {{
+            id
+            __typename
+        }}
+    }}
+    """
+    
+    try:
+        result = await call_boligflow(query)
+        
+        if "errors" in result:
+            return json.dumps({
+                "exists": False,
+                "error": "GraphQL errors",
+                "details": result["errors"]
+            }, indent=2, ensure_ascii=False)
+        
+        if "data" in result:
+            record_data = result["data"].get(record_type.lower())
+            
+            if record_data is None:
+                return json.dumps({
+                    "exists": False,
+                    "message": f"{record_type} with ID {record_id} not found"
+                }, indent=2, ensure_ascii=False)
+            
+            return json.dumps({
+                "exists": True,
+                "record_type": record_data.get("__typename"),
+                "record_id": record_data.get("id"),
+                "message": f"{record_type} exists and is accessible"
+            }, indent=2, ensure_ascii=False)
+        
+        return json.dumps({
+            "exists": False,
+            "message": "Unexpected response format",
+            "response": result
+        }, indent=2, ensure_ascii=False)
+        
+    except Exception as e:
+        return json.dumps({
+            "exists": False,
+            "error": str(e)
+        }, indent=2, ensure_ascii=False)
+    
+
+#TODO - kaldes ikke lige nu - flyttet hertil fra email_tools. Potentielt lave nogle error tools
+def debug_env_vars() -> str:
+    """Debug tool to check environment variables"""
+    import os
+    return json.dumps({
+        "IMAP_SERVER": os.getenv("IMAP_SERVER"),
+        "IMAP_PORT": os.getenv("IMAP_PORT"),
+        "EMAIL_USER": os.getenv("EMAIL_USER"),
+        "EMAIL_PASSWORD": "***" if os.getenv("EMAIL_PASSWORD") else None,
+    }, indent=2)

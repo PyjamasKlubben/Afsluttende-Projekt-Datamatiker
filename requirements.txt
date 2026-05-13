@@ -2,7 +2,7 @@
 
 # Core MCP
 mcp>=1.0.0
-fastmcp==3.1.0
+fastmcp>=3.1.0
 
 # HTTP og async
 httpx>=0.28.1
