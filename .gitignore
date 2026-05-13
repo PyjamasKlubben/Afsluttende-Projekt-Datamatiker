@@ -209,3 +209,8 @@ __marimo__/
 
 # node_modules
 node_modules/
+
+# Lokale konfigurationsfiler
+docker-compose.local.yml
+config.local.yaml
+agentgateway-running-config.yaml

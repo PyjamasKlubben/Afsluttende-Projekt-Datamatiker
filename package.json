@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "mkcert": "^3.2.0",
+    "python": "^0.0.4",
     "uv": "^1.4.0"
   }
 }

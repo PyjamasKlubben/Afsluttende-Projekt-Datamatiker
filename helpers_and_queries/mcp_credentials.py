@@ -14,17 +14,60 @@ Eksempel:
 """
 
 import os
+import time
 import logging
-from functools import lru_cache
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-CREDENTIALS_SERVICE_URL = os.environ.get(
-    "CREDENTIALS_SERVICE_URL",
-    "http://credentials-service:8001"
-)
+CREDENTIALS_SERVICE_URL = os.environ["CREDENTIALS_SERVICE_URL"]
+SYSTEM_USER_ID = os.environ.get("SYSTEM_USER_ID", "system")
+
+_CACHE_TTL = 60  # sekunder
+
+_system_cache: dict[str, str] = {}
+_system_cache_ts: float = 0.0
+
+
+async def get_system_credentials() -> dict[str, str]:
+    """Hent system-credentials fra credentials-servicen (async). Caches i 60 sekunder."""
+    global _system_cache, _system_cache_ts
+    if _system_cache and time.monotonic() - _system_cache_ts < _CACHE_TTL:
+        return _system_cache
+    url = f"{CREDENTIALS_SERVICE_URL}/internal/credentials/{SYSTEM_USER_ID}"
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(url)
+        if resp.status_code == 200:
+            _system_cache = resp.json()
+            _system_cache_ts = time.monotonic()
+            logger.info("Loaded %d system credentials", len(_system_cache))
+        else:
+            logger.error("Credentials service returned %d for system user", resp.status_code)
+    except httpx.RequestError as e:
+        logger.error("Could not reach credentials service: %s", e)
+    return _system_cache
+
+
+def get_system_credentials_sync() -> dict[str, str]:
+    """Hent system-credentials fra credentials-servicen (sync). Caches i 60 sekunder."""
+    global _system_cache, _system_cache_ts
+    if _system_cache and time.monotonic() - _system_cache_ts < _CACHE_TTL:
+        return _system_cache
+    url = f"{CREDENTIALS_SERVICE_URL}/internal/credentials/{SYSTEM_USER_ID}"
+    try:
+        with httpx.Client(timeout=5) as client:
+            resp = client.get(url)
+        if resp.status_code == 200:
+            _system_cache = resp.json()
+            _system_cache_ts = time.monotonic()
+            logger.info("Loaded %d system credentials", len(_system_cache))
+        else:
+            logger.error("Credentials service returned %d for system user", resp.status_code)
+    except httpx.RequestError as e:
+        logger.error("Could not reach credentials service: %s", e)
+    return _system_cache
 
 
 def _extract_sub(token: str) -> str | None:

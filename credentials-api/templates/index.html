@@ -104,7 +104,8 @@
     margin-bottom: 2rem;
   }
 
-  .add-form input {
+  .add-form input,
+  .add-form select {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text);
@@ -113,10 +114,13 @@
     padding: 0.6rem 0.75rem;
     outline: none;
     transition: border-color 0.15s;
+    appearance: none;
   }
 
-  .add-form input:focus { border-color: var(--accent); }
+  .add-form input:focus,
+  .add-form select:focus { border-color: var(--accent); }
   .add-form input::placeholder { color: var(--muted); }
+  .add-form select option { background: var(--surface); color: var(--text); }
 
   .cred-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
@@ -212,7 +216,9 @@
 
     <p class="section-label">Tilføj nøgle</p>
     <div class="add-form">
-      <input id="new-name"  placeholder="Navn  (fx OPENAI_API_KEY)" />
+      <select id="new-name">
+        <option value="">Vælg nøgletype…</option>
+      </select>
       <input id="new-value" type="password" placeholder="Værdi" />
       <button class="btn" onclick="addCredential()">Gem</button>
     </div>
@@ -229,14 +235,26 @@
 <script>
   let KEYCLOAK_URL = null, KEYCLOAK_REALM = null, CLIENT_ID = null;
   let TOKEN = null;
-  const REDIRECT_URI = window.location.origin + '/callback';
+  let REDIRECT_URI = window.location.origin + '/callback';
+  const BASE = window.location.pathname.startsWith('/credentials') ? '/credentials' : '';
 
   async function init() {
-    const cfg = await fetch('/config').then(r => r.json());
+    const [cfg, allowed] = await Promise.all([
+      fetch(`${BASE}/config`).then(r => r.json()),
+      fetch(`${BASE}/allowed-credentials`).then(r => r.json()),
+    ]);
     KEYCLOAK_URL   = cfg.keycloak_url;
     KEYCLOAK_REALM = cfg.keycloak_realm;
     CLIENT_ID      = cfg.client_id;
-    REDIRECT_URI   = cfg.redirect_uri;  // ← hentes fra server i stedet
+    REDIRECT_URI   = cfg.redirect_uri;
+
+    const sel = document.getElementById('new-name');
+    allowed.forEach(({ key_name, label }) => {
+      const opt = document.createElement('option');
+      opt.value = key_name;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
 
     const params = new URLSearchParams(window.location.search);
     const stored = sessionStorage.getItem('credentials_token');
@@ -244,7 +262,7 @@
     if (params.has('token')) {
       TOKEN = params.get('token');
       sessionStorage.setItem('credentials_token', TOKEN);
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', `${BASE}/`);
       await showMain();
     } else if (stored) {
       TOKEN = stored;
@@ -278,9 +296,12 @@
   function logout() {
     sessionStorage.removeItem('credentials_token');
     TOKEN = null;
-    document.getElementById('login-panel').style.display = 'block';
-    document.getElementById('main-panel').style.display  = 'none';
+    const logoutUrl = new URL(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout`);
+    logoutUrl.searchParams.set('client_id', CLIENT_ID);
+    logoutUrl.searchParams.set('post_logout_redirect_uri', window.location.origin + `${BASE}/`);
+    window.location.href = logoutUrl.toString();
   }
+
 
   function toast(msg, error = false) {
     const el = document.getElementById('toast');
@@ -295,7 +316,7 @@
       headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }
     };
     if (body) opts.body = JSON.stringify(body);
-    const r = await fetch(path, opts);
+    const r = await fetch(`${BASE}${path}`, opts);
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     return r.status === 204 ? null : r.json();
   }
@@ -315,9 +336,9 @@
   }
 
   async function addCredential() {
-    const name  = document.getElementById('new-name').value.trim();
+    const name  = document.getElementById('new-name').value;
     const value = document.getElementById('new-value').value.trim();
-    if (!name || !value) { toast('Udfyld både navn og værdi', true); return; }
+    if (!name || !value) { toast('Vælg nøgletype og indtast en værdi', true); return; }
     try {
       await api('POST', '/me/credentials', { key_name: name, key_value: value });
       document.getElementById('new-name').value  = '';

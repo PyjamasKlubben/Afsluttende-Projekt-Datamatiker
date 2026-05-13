@@ -100,6 +100,16 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Depends(securit
         logger.error("Keycloak unreachable: %s", e)
         raise HTTPException(status_code=503, detail="Auth service unavailable")
 
+# ── Allowed credentials ───────────────────────────────────────────────────────
+
+ALLOWED_CREDENTIALS: dict[str, str] = {
+    "BOLIGFLOW_API_KEY": "Boligflow API-nøgle",
+    "N8N_API_KEY":       "n8n API-nøgle",
+    "OPENAI_API_KEY":    "OpenAI API-nøgle",
+    "EMAIL":             "Email-addresse",
+    "EMAIL_PASSWORD":    "Email-appkode",
+}
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class CredentialIn(BaseModel):
@@ -133,9 +143,17 @@ async def list_credentials(claims: dict = Depends(verify_jwt)):
     return [{"key_name": r["key_name"], "created_at": r["created_at"]} for r in rows]
 
 
+@app.get("/allowed-credentials")
+async def list_allowed_credentials():
+    """Return the list of permitted credential keys and their labels."""
+    return [{"key_name": k, "label": v} for k, v in ALLOWED_CREDENTIALS.items()]
+
+
 @app.post("/me/credentials", status_code=201)
 async def upsert_credential(body: CredentialIn, claims: dict = Depends(verify_jwt)):
     """Create or update a credential for the current user."""
+    if body.key_name not in ALLOWED_CREDENTIALS:
+        raise HTTPException(status_code=400, detail=f"'{body.key_name}' er ikke en tilladt credential-type")
     user_id = claims["sub"]
     encrypted = encrypt(body.key_value)
     with get_db() as conn:
@@ -217,7 +235,7 @@ async def oidc_callback(code: str, request: Request):
     Keycloak redirects here after login with an authorization code.
     We exchange it for a token and redirect the browser to / with the token.
     """
-    redirect_uri = str(request.base_url) + "callback"
+    redirect_uri = UI_REDIRECT_URI
     token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
  
     try:
@@ -235,7 +253,7 @@ async def oidc_callback(code: str, request: Request):
         access_token = resp.json()["access_token"]
         # Redirect til UI med tokenet som query param – JS gemmer det i sessionStorage
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url=f"/?token={access_token}")
+        return RedirectResponse(url=f"/credentials/?token={access_token}")
  
     except httpx.RequestError as e:
         logger.error("Token exchange failed: %s", e)

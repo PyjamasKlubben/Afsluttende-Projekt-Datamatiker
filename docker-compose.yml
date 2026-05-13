@@ -13,6 +13,7 @@ services:
         condition: service_started
       utility-tools:
         condition: service_started
+
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
@@ -46,7 +47,7 @@ services:
       - ./config.yaml:/config.yaml
     environment:
       - ADMIN_ADDR=0.0.0.0:15000
-      - OIDC_ISSUER=https://auth.petermikkelsen.dk/realms/mcp   
+      - OIDC_ISSUER=https://auth.petermikkelsen.dk/realms/mcp
       - OIDC_JWKS_URL=http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
     command: ["-f", "/config.yaml"]
     depends_on:
@@ -55,24 +56,20 @@ services:
       utility-tools:
         condition: service_started
 
-#Genereret af Claude 06-05-2026
   credentials-service:
     build:
       context: .
       dockerfile: credentials-api/Dockerfile.credentials-api
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      # Generer én gang med: python -c "import secrets; print(secrets.token_hex(32))"
-      CREDENTIALS_ENCRYPTION_KEY: "${CREDENTIALS_ENCRYPTION_KEY}"
-      KEYCLOAK_URL:   "${KEYCLOAK_URL}"    # fx http://keycloak:8080
-      KEYCLOAK_REALM: "${KEYCLOAK_REALM}"  # fx myrealm
-      DB_PATH: "/data/credentials.db"
+      - KEYCLOAK_URL=http://keycloak:8080
+      - DB_PATH=/data/credentials.db
     volumes:
       - credentials_data:/data
-    # Vigtigt: kun eksponeret internt – ikke tilgængeligt udefra
     expose:
       - "8001"
-    # Kun tilgængeligt via UI-proxy nedenfor eksternt
     networks:
       - internal
       - default
@@ -84,11 +81,12 @@ services:
     container_name: utility-tools
     ports:
       - "3003:3003"
+    env_file:
+      - .env
     environment:
       - PORT=3003
       - PYTHONUNBUFFERED=1
-    env_file:
-      - .env
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
       interval: 10s
@@ -96,7 +94,7 @@ services:
       retries: 3
       start_period: 10s
     restart: always
-  
+
   financial-entry-tools:
     build:
       context: .
@@ -104,11 +102,12 @@ services:
     container_name: financial-entry-tools
     ports:
       - "3002:3002"
+    env_file:
+      - .env
     environment:
       - PORT=3002
       - PYTHONUNBUFFERED=1
-    env_file:
-      - .env
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 10s
@@ -124,11 +123,12 @@ services:
     container_name: email-tools
     ports:
       - "3005:3005"
+    env_file:
+      - .env
     environment:
       - PORT=3005
       - PYTHONUNBUFFERED=1
-    env_file:
-      - .env
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
       interval: 10s
@@ -144,11 +144,12 @@ services:
     container_name: cache-query-tools
     ports:
       - "3004:3004"
+    env_file:
+      - .env
     environment:
       - PORT=3004
       - PYTHONUNBUFFERED=1
-    env_file:
-      - .env
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
       interval: 10s
@@ -164,11 +165,13 @@ services:
     container_name: n8n-workflow-tools
     ports:
       - "3001:3001"
+    env_file:
+      - .env
     environment:
       - PORT=3001
       - PYTHONUNBUFFERED=1
-    env_file:
-      - .env
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
+      - N8N_BASE_URL=http://n8n:5678
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 10s
