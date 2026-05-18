@@ -7,6 +7,7 @@ import imaplib
 import email
 from email.header import decode_header
 from email.utils import parseaddr
+import email.utils
 import base64
 import re
 import time
@@ -185,6 +186,8 @@ def _is_template(workflow: Dict[str, Any]) -> bool:
 #logikken til caching flyttes ind i helpers og kalder andre metoder gennem denne
 async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Call Boligflow GraphQL API"""
+    if not BASE_URL:
+        return {"error": "Missing BASE_URL environment variable"}
     if not API_KEY:
         return {"error": "Missing API_KEY environment variable"}
 
@@ -195,13 +198,12 @@ async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None)
         "Content-Type": "application/json",
     }
 
-    payload = {"query": query}
+    payload: Dict[str, Any] = {"query": query}
     if variables:
         payload["variables"] = variables
 
     async with httpx.AsyncClient(headers=headers, timeout=30) as client:
-        response = await client.post(BASE_URL, json=payload)
-        response.raise_for_status()
+        response = await client.post(BASE_URL, json=payload) 
         return response.json()
 
 
@@ -304,7 +306,10 @@ def get_unread_emails(subject_filter: Optional[str] = None, max_emails: int = 10
                 continue
             
             # Parse email
-            raw_email = msg_data[0][1]
+            raw_data = msg_data[0]
+            if not isinstance(raw_data, tuple):
+                continue
+            raw_email = raw_data[1]
             msg = email.message_from_bytes(raw_email)
             
             # Decode subject
@@ -339,35 +344,41 @@ def get_unread_emails(subject_filter: Optional[str] = None, max_emails: int = 10
                     # Text plain body
                     if content_type == "text/plain" and "attachment" not in content_disposition:
                         try:
-                            body = part.get_payload(decode=True).decode(errors="ignore")
+                            p = part.get_payload(decode=True)
+                            if isinstance(p, bytes):
+                                body = p.decode(errors="ignore")
                         except:
                             pass
-                    
+
                     # HTML body
                     elif content_type == "text/html" and "attachment" not in content_disposition:
                         try:
-                            html_body = part.get_payload(decode=True).decode(errors="ignore")
+                            p = part.get_payload(decode=True)
+                            if isinstance(p, bytes):
+                                html_body = p.decode(errors="ignore")
                         except:
                             pass
-                    
+
                     # Attachments
                     elif "attachment" in content_disposition:
                         filename = part.get_filename()
                         if filename:
-                            attachments.append({
-                                "filename": filename,
-                                "content_type": content_type,
-                                "data": base64.b64encode(part.get_payload(decode=True)).decode()
-                            })
+                            raw_attachment = part.get_payload(decode=True)
+                            if isinstance(raw_attachment, bytes):
+                                attachments.append({
+                                    "filename": filename,
+                                    "content_type": content_type,
+                                    "data": base64.b64encode(raw_attachment).decode()
+                                })
             else:
                 try:
                     content_type = msg.get_content_type()
                     payload = msg.get_payload(decode=True)
-                    
-                    if content_type == "text/html":
-                        html_body = payload.decode(errors="ignore")
-                    else:
-                        body = payload.decode(errors="ignore")
+                    if isinstance(payload, bytes):
+                        if content_type == "text/html":
+                            html_body = payload.decode(errors="ignore")
+                        else:
+                            body = payload.decode(errors="ignore")
                 except:
                     body = str(msg.get_payload())
             
@@ -415,7 +426,7 @@ def mark_email_as_read(email_id: str):
         imap.select("INBOX")
         
         # Marker som læst
-        status, response = imap.store(email_id.encode(), '+FLAGS', '\\Seen')
+        status, response = imap.store(email_id, '+FLAGS', '\\Seen')
         
         if status != 'OK':
             raise Exception(f"Failed to mark email as read. Status: {status}, Response: {response}")
@@ -442,7 +453,11 @@ async def upload_email_to_boligflow(
     Returns:
         API response
     """
-    
+    if not BASE_URL:
+        return {"error": "Missing BASE_URL environment variable"}
+    if not API_KEY:
+        return {"error": "Missing API_KEY environment variable"}
+
     # Prepare operations object
     operations = {
         "query": CREATE_FILE_MUTATION,
@@ -516,6 +531,10 @@ async def upload_attachment_to_boligflow(
     attachment: Dict[str, Any],
     fileable_type: str = "Case"
 ) -> Dict[str, Any]:
+    if not BASE_URL:
+        return {"error": "Missing BASE_URL environment variable"}
+    if not API_KEY:
+        return {"error": "Missing API_KEY environment variable"}
 
     operations = {
         "query": CREATE_FILE_MUTATION,
@@ -605,7 +624,11 @@ def get_emails_by_sender(
             if status != "OK":
                 continue
 
-            raw_email = msg_data[0][1]
+             # Parse email
+            raw_data = msg_data[0]
+            if not isinstance(raw_data, tuple):
+                continue
+            raw_email = raw_data[1]
             msg = email.message_from_bytes(raw_email)
 
             # Decode subject
@@ -640,31 +663,38 @@ def get_emails_by_sender(
 
                     if content_type == "text/plain" and "attachment" not in content_disposition:
                         try:
-                            body = part.get_payload(decode=True).decode(errors="ignore")
+                            p = part.get_payload(decode=True)
+                            if isinstance(p, bytes):
+                                body = p.decode(errors="ignore")
                         except:
                             pass
 
                     elif content_type == "text/html" and "attachment" not in content_disposition:
                         try:
-                            html_body = part.get_payload(decode=True).decode(errors="ignore")
+                            p = part.get_payload(decode=True)
+                            if isinstance(p, bytes):
+                                html_body = p.decode(errors="ignore")
                         except:
                             pass
 
                     elif "attachment" in content_disposition:
                         filename = part.get_filename()
                         if filename:
-                            attachments.append({
-                                "filename": filename,
-                                "content_type": content_type,
-                                "data": base64.b64encode(part.get_payload(decode=True)).decode()
-                            })
+                            raw_attachment = part.get_payload(decode=True)
+                            if isinstance(raw_attachment, bytes):
+                                attachments.append({
+                                    "filename": filename,
+                                    "content_type": content_type,
+                                    "data": base64.b64encode(raw_attachment).decode()
+                                })
             else:
                 try:
                     payload = msg.get_payload(decode=True)
-                    if msg.get_content_type() == "text/html":
-                        html_body = payload.decode(errors="ignore")
-                    else:
-                        body = payload.decode(errors="ignore")
+                    if isinstance(payload, bytes):
+                        if msg.get_content_type() == "text/html":
+                            html_body = payload.decode(errors="ignore")
+                        else:
+                            body = payload.decode(errors="ignore")
                 except:
                     body = str(msg.get_payload())
 

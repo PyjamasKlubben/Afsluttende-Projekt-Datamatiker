@@ -5,7 +5,9 @@ from typing import Any, Dict, Optional, List
 from pathlib import Path
 import imaplib
 import email
+import email.message
 from email.header import decode_header
+import email.utils
 from email.utils import parseaddr
 import base64
 import re
@@ -157,6 +159,8 @@ async def call_n8n(method: str, path: str, body: Optional[Dict[str, Any]] = None
     """Call n8n REST API."""
     if not N8N_API_KEY:
         return {"error": "Missing N8N_API_KEY environment variable"}
+    if not N8N_BASE_URL:
+        return {"error": "Missing N8N_BASE_URL environment variable"}
 
     url = f"{N8N_BASE_URL}/api/v1{path}"
     headers = {"X-N8N-API-KEY": N8N_API_KEY}
@@ -206,6 +210,8 @@ class HttpBoligflowClient:
     async def query(
         self, query: str, variables: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
+        if not BASE_URL:
+            return {"error": "Missing BASE_URL environment variable"}
         if not API_KEY:
             return {"error": "Missing API_KEY environment variable"}
 
@@ -236,6 +242,8 @@ class HttpBoligflowClient:
         """
         if not API_KEY:
             return {"error": "Missing API_KEY environment variable"}
+        if not BASE_URL:
+            return {"error": "Missing BASE_URL environment variable"}
 
         operations = {
             "query": CREATE_FILE_MUTATION,
@@ -393,31 +401,36 @@ def _parse_email_message(msg: email.message.Message, raw_email: bytes) -> dict:
 
             if content_type == "text/plain" and "attachment" not in content_disposition:
                 try:
-                    body = part.get_payload(decode=True).decode(errors="ignore")
+                    payload = part.get_payload(decode=True)
+                    if isinstance(payload, bytes):
+                        body = payload.decode(errors="ignore")
                 except Exception:
                     pass
             elif content_type == "text/html" and "attachment" not in content_disposition:
                 try:
-                    html_body = part.get_payload(decode=True).decode(errors="ignore")
+                    payload = part.get_payload(decode=True)
+                    if isinstance(payload, bytes):
+                        html_body = payload.decode(errors="ignore")
                 except Exception:
                     pass
             elif "attachment" in content_disposition:
                 filename = part.get_filename()
                 if filename:
-                    attachments.append({
-                        "filename": filename,
-                        "content_type": content_type,
-                        "data": base64.b64encode(
-                            part.get_payload(decode=True)
-                        ).decode(),
-                    })
+                    raw_attachment = part.get_payload(decode=True)
+                    if isinstance(raw_attachment, bytes):
+                        attachments.append({
+                            "filename": filename,
+                            "content_type": content_type,
+                            "data": base64.b64encode(raw_attachment).decode(),
+                        })
     else:
         try:
             payload = msg.get_payload(decode=True)
-            if msg.get_content_type() == "text/html":
-                html_body = payload.decode(errors="ignore")
-            else:
-                body = payload.decode(errors="ignore")
+            if isinstance(payload, bytes):
+                if msg.get_content_type() == "text/html":
+                    html_body = payload.decode(errors="ignore")
+                else:
+                    body = payload.decode(errors="ignore")
         except Exception:
             body = str(msg.get_payload())
 
@@ -522,10 +535,13 @@ class ImapEmailProvider:
 
                 scanned += 1
                 status, msg_data = imap.fetch(email_id, "(BODY.PEEK[])")
-                if status != "OK":
+                if status != "OK" or not msg_data:
                     continue
 
-                raw_email = msg_data[0][1]
+                raw_data = msg_data[0]
+                if not isinstance(raw_data, tuple):
+                    continue
+                raw_email = raw_data[1]
                 msg = email.message_from_bytes(raw_email)
 
                 parsed = _parse_email_message(msg, raw_email)
@@ -547,7 +563,7 @@ class ImapEmailProvider:
     def mark_as_read(self, email_id: str) -> None:
         try:
             imap = self._connect()
-            status, response = imap.store(email_id.encode(), "+FLAGS", "\\Seen")
+            status, response = imap.store(email_id, "+FLAGS", "\\Seen")
             imap.logout()
             if status != "OK":
                 raise Exception(f"Failed to mark email as read. Status: {status}, Response: {response}")
@@ -608,13 +624,13 @@ async def get_dimensionables(dimension_type: str):
     return result.get("dimensionables", [])
 
 
-async def get_properties(filter: dict = None) -> str:
+async def get_properties(filter: dict) -> str:
     variables = {"filter": filter} if filter else {}
     result = await call_boligflow(GET_PROPERTIES_QUERY, variables)
     return result.get("properties", [])
 
 
-async def get_leases(filter: dict = None) -> str:
+async def get_leases(filter: dict) -> str:
     variables = {"filter": filter} if filter else {}
     result = await call_boligflow(GET_LEASES_QUERY, variables)
     return result.get("leases", [])

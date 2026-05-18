@@ -13,10 +13,10 @@ if str(ROOT) not in sys.path:
 
 # Import from package when running in Docker, from relative when running locally
 try:
-    from helpers_and_queries.mcp_tools_queries import GET_TENANTS_QUERY, GET_TYPES_QUERY, GET_TYPE_DETAILS_QUERY, CREATE_FILE_MUTATION, CREATE_ORPHANED_FILE_MUTATION, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY, GET_TYPES_QUERY
+    from helpers_and_queries.mcp_tools_queries import GET_TENANTS_QUERY, GET_TYPES_QUERY, GET_TYPE_DETAILS_QUERY, CREATE_FILE_MUTATION, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY, GET_TYPES_QUERY # CREATE_ORPHANED_FILE_MUTATION
     from helpers_and_queries.mcp_helpers import auto_cache_query, call_boligflow
 except ImportError:
-    from helpers_and_queries.mcp_tools_queries import GET_TENANTS_QUERY, GET_TYPES_QUERY, GET_TYPE_DETAILS_QUERY, CREATE_FILE_MUTATION, CREATE_ORPHANED_FILE_MUTATION, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY, GET_TYPES_QUERY
+    from helpers_and_queries.mcp_tools_queries import GET_TENANTS_QUERY, GET_TYPES_QUERY, GET_TYPE_DETAILS_QUERY, CREATE_FILE_MUTATION, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY, GET_TYPES_QUERY #CREATE_ORPHANED_FILE_MUTATION
     from helpers_and_queries.mcp_helpers import auto_cache_query, call_boligflow
 
 from dotenv import load_dotenv

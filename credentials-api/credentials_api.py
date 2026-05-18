@@ -189,8 +189,8 @@ async def get_credentials_internal(user_id: str, request: Request):
     Only accessible from within the docker network (not exposed externally).
     """
     # Basic protection: only allow from internal network
-    client_host = request.client.host
-    if not (client_host.startswith("172.") or client_host.startswith("10.") or client_host == "127.0.0.1"):
+    client_host = request.client.host if request.client else None
+    if not (client_host.startswith("172.") or client_host.startswith("10.") or client_host == "127.0.0.1") if client_host else None:
         raise HTTPException(status_code=403, detail="Internal endpoint only")
 
     with get_db() as conn:
