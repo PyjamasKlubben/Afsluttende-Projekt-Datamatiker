@@ -7,16 +7,18 @@ from datetime import datetime
 
 import mcp
 from starlette.responses import JSONResponse
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 try:
-    from helpers_and_queries.mcp_helpers import call_boligflow,  load_cache, save_cache
+    from helpers_and_queries.mcp_helpers import call_boligflow, load_cache, save_cache
+    from helpers_and_queries.mcp_credentials import UserSession
 except ImportError:
-    from helpers_and_queries.mcp_helpers import call_boligflow,  load_cache, save_cache
+    from helpers_and_queries.mcp_helpers import call_boligflow, load_cache, save_cache
+    from helpers_and_queries.mcp_credentials import UserSession
 
 
 from dotenv import load_dotenv
@@ -30,7 +32,6 @@ BASE_URL = os.environ.get("BASE_URL")
 COMPANY = os.environ.get("COMPANY")
 INTEGRATION = os.environ.get("INTEGRATION")
 
-API_KEY = os.getenv("API_KEY")
 
 # Query Cache
 CACHE_FILE = Path(__file__).parent / "query_cache.json"
@@ -216,12 +217,13 @@ async def clear_all_cached_queries() -> str:
 
 
 @mcp.tool()
-async def cleanup_cached_queries() -> str:
+async def cleanup_cached_queries(ctx: Context) -> str:
     """
     Clean up the query cache by removing duplicates, unnamed queries (auto-xxx),
     and queries that no longer work against the current GraphQL schema.
     Returns a report of what was removed and what remains.
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     cache = load_cache()
     original_count = len(cache["queries"])
 
@@ -259,7 +261,7 @@ async def cleanup_cached_queries() -> str:
     validated = []
     for q in kept:
         try:
-            result = await call_boligflow(q["query"], q.get("variables"))
+            result = await call_boligflow(q["query"], q.get("variables"), session.env)
             if "errors" in result:
                 error_msg = result["errors"][0].get("message", "Unknown error")
                 removed.append({"id": q["id"], "reason": f"Schema validation failed: {error_msg}"})

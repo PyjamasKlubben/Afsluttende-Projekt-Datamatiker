@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 import mcp
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 from starlette.responses import JSONResponse
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,8 +14,10 @@ if str(ROOT) not in sys.path:
 # Import from package when running in Docker, from relative when running locally
 try:
     from helpers_and_queries.mcp_helpers import call_boligflow, call_n8n, _is_template
+    from helpers_and_queries.mcp_credentials import UserSession
 except ImportError:
     from helpers_and_queries.mcp_helpers import call_boligflow, call_n8n, _is_template
+    from helpers_and_queries.mcp_credentials import UserSession
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -28,11 +30,6 @@ BASE_URL = os.environ.get("BASE_URL")
 COMPANY = os.environ.get("COMPANY")
 INTEGRATION = os.environ.get("INTEGRATION")
 
-API_KEY = os.getenv("API_KEY")
-
-# n8n Config
-N8N_BASE_URL = os.getenv("N8N_BASE_URL", "http://localhost:5678")
-N8N_API_KEY = os.getenv("N8N_API_KEY")
 TEMPLATE_PREFIX = "[TEMPLATE]"
 
 # Query Cache
@@ -50,14 +47,15 @@ mcp = FastMCP("n8n Workflow Tools")
 # --------------------
 
 @mcp.tool()
-async def list_n8n_workflows() -> str:
+async def list_n8n_workflows(ctx: Context) -> str:
     """
     List available n8n template workflows. Only returns [TEMPLATE] workflows.
     These are master templates that should be cloned (via clone_n8n_workflow) before modification.
     NEVER use or modify non-template workflows.
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
-        result = await call_n8n("GET", "/workflows")
+        result = await call_n8n("GET", "/workflows", user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -75,7 +73,7 @@ async def list_n8n_workflows() -> str:
                 }
                 # Fetch full workflow to extract sticky note description
                 try:
-                    full_wf = await call_n8n("GET", f"/workflows/{wf.get('id')}")
+                    full_wf = await call_n8n("GET", f"/workflows/{wf.get('id')}", user_credentials=session.env)
                     if "error" not in full_wf:
                         for node in full_wf.get("nodes", []):
                             if node.get("type") == "n8n-nodes-base.stickyNote":
@@ -95,15 +93,16 @@ async def list_n8n_workflows() -> str:
 
 
 @mcp.tool()
-async def get_n8n_workflow(workflow_id: str) -> str:
+async def get_n8n_workflow(ctx: Context, workflow_id: str) -> str:
     """
     Get full details of an n8n workflow including all nodes, parameters and connections.
 
     Args:
         workflow_id: The ID of the workflow to retrieve
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
-        result = await call_n8n("GET", f"/workflows/{workflow_id}")
+        result = await call_n8n("GET", f"/workflows/{workflow_id}", user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -129,7 +128,7 @@ async def get_n8n_workflow(workflow_id: str) -> str:
 
 
 @mcp.tool()
-async def clone_n8n_workflow(template_workflow_id: str, new_name: str) -> str:
+async def clone_n8n_workflow(ctx: Context, template_workflow_id: str, new_name: str) -> str:
     """
     Clone a [TEMPLATE] workflow to create a new editable workflow.
     The source workflow MUST be a template (name starts with [TEMPLATE]).
@@ -140,9 +139,10 @@ async def clone_n8n_workflow(template_workflow_id: str, new_name: str) -> str:
         template_workflow_id: ID of the template workflow to clone
         new_name: Name for the new workflow (without [TEMPLATE] prefix)
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
         # Get template
-        template = await call_n8n("GET", f"/workflows/{template_workflow_id}")
+        template = await call_n8n("GET", f"/workflows/{template_workflow_id}", user_credentials=session.env)
         if "error" in template:
             return json.dumps(template, indent=2)
 
@@ -173,7 +173,7 @@ async def clone_n8n_workflow(template_workflow_id: str, new_name: str) -> str:
         }
 
         # Create new workflow
-        result = await call_n8n("POST", "/workflows", clone)
+        result = await call_n8n("POST", "/workflows", clone, user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -185,7 +185,7 @@ async def clone_n8n_workflow(template_workflow_id: str, new_name: str) -> str:
             for enum_name in enum_types:
                 enum_result = await call_boligflow(f"""
                     query {{ __type(name: "{enum_name}") {{ name enumValues {{ name description }} }} }}
-                """)
+                """, user_credentials=session.env)
                 if "errors" not in enum_result:
                     enum_data = enum_result.get("data", {}).get("__type")
                     if enum_data and enum_data.get("enumValues"):
@@ -218,6 +218,7 @@ async def clone_n8n_workflow(template_workflow_id: str, new_name: str) -> str:
 
 @mcp.tool()
 async def update_n8n_node_param(
+    ctx: Context,
     workflow_id: str,
     node_name: str,
     param_path: str,
@@ -246,9 +247,10 @@ async def update_n8n_node_param(
         new_value: New value as JSON string (e.g. '"peter@firma.dk"' for strings,
                    '[{"field": "cronExpression", "expression": "0 12 * * 5"}]' for objects)
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
         # Get current workflow
-        workflow = await call_n8n("GET", f"/workflows/{workflow_id}")
+        workflow = await call_n8n("GET", f"/workflows/{workflow_id}", user_credentials=session.env)
         if "error" in workflow:
             return json.dumps(workflow, indent=2)
 
@@ -310,7 +312,7 @@ if (response.errors) {
             "settings": workflow.get("settings", {}),
         }
 
-        result = await call_n8n("PUT", f"/workflows/{workflow_id}", update_body)
+        result = await call_n8n("PUT", f"/workflows/{workflow_id}", update_body, user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -327,7 +329,7 @@ if (response.errors) {
 
 
 @mcp.tool()
-async def activate_n8n_workflow(workflow_id: str, activate: bool = True) -> str:
+async def activate_n8n_workflow(ctx: Context, workflow_id: str, activate: bool = True) -> str:
     """
     Activate or deactivate an n8n workflow.
     Cannot activate/deactivate [TEMPLATE] workflows.
@@ -336,9 +338,10 @@ async def activate_n8n_workflow(workflow_id: str, activate: bool = True) -> str:
         workflow_id: ID of the workflow
         activate: True to activate, False to deactivate (default: True)
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
         # Check template protection
-        workflow = await call_n8n("GET", f"/workflows/{workflow_id}")
+        workflow = await call_n8n("GET", f"/workflows/{workflow_id}", user_credentials=session.env)
         if "error" in workflow:
             return json.dumps(workflow, indent=2)
 
@@ -364,7 +367,7 @@ async def activate_n8n_workflow(workflow_id: str, activate: bool = True) -> str:
                 }, indent=2, ensure_ascii=False)
 
         action = "activate" if activate else "deactivate"
-        result = await call_n8n("POST", f"/workflows/{workflow_id}/{action}")
+        result = await call_n8n("POST", f"/workflows/{workflow_id}/{action}", user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -380,7 +383,7 @@ async def activate_n8n_workflow(workflow_id: str, activate: bool = True) -> str:
 
 
 @mcp.tool()
-async def run_n8n_workflow(workflow_id: str) -> str:
+async def run_n8n_workflow(ctx: Context, workflow_id: str) -> str:
     """
     Run an n8n workflow manually (one-time execution for testing).
     Cannot run [TEMPLATE] workflows.
@@ -388,9 +391,10 @@ async def run_n8n_workflow(workflow_id: str) -> str:
     Args:
         workflow_id: ID of the workflow to run
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
         # Check template protection
-        workflow = await call_n8n("GET", f"/workflows/{workflow_id}")
+        workflow = await call_n8n("GET", f"/workflows/{workflow_id}", user_credentials=session.env)
         if "error" in workflow:
             return json.dumps(workflow, indent=2)
 
@@ -399,7 +403,7 @@ async def run_n8n_workflow(workflow_id: str) -> str:
                 "error": f"Cannot run template workflow '{workflow['name']}'. Clone it first."
             }, indent=2)
 
-        result = await call_n8n("POST", f"/workflows/{workflow_id}/execute")
+        result = await call_n8n("POST", f"/workflows/{workflow_id}/execute", user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -415,7 +419,7 @@ async def run_n8n_workflow(workflow_id: str) -> str:
 
 
 @mcp.tool()
-async def check_n8n_workflow_health() -> str:
+async def check_n8n_workflow_health(ctx: Context) -> str:
     """
     Check health of all active (non-template) n8n workflows.
     Returns execution status for each workflow - shows which ones have failed recently.
@@ -430,9 +434,10 @@ async def check_n8n_workflow_health() -> str:
     6. Also update the Code node if the data structure changed
     7. Use run_n8n_workflow to verify the full workflow works
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     try:
         # Get all workflows
-        result = await call_n8n("GET", "/workflows")
+        result = await call_n8n("GET", "/workflows", user_credentials=session.env)
         if "error" in result:
             return json.dumps(result, indent=2)
 
@@ -456,7 +461,7 @@ async def check_n8n_workflow_health() -> str:
             wf_name = wf.get("name")
 
             # Get recent executions for this workflow
-            executions = await call_n8n("GET", f"/executions?workflowId={wf_id}&limit=5")
+            executions = await call_n8n("GET", f"/executions?workflowId={wf_id}&limit=5", user_credentials=session.env)
             if "error" in executions:
                 health_report.append({
                     "workflow_id": wf_id,
@@ -503,7 +508,7 @@ async def check_n8n_workflow_health() -> str:
                 exec_id = failed_exec.get("id")
                 entry["last_failure_time"] = failed_exec.get("stoppedAt", failed_exec.get("finishedAt", ""))
                 if exec_id:
-                    exec_detail = await call_n8n("GET", f"/executions/{exec_id}")
+                    exec_detail = await call_n8n("GET", f"/executions/{exec_id}", user_credentials=session.env)
                     if "error" not in exec_detail:
                         # Find the node that failed
                         result_data = exec_detail.get("data", {}).get("resultData", {})
@@ -539,7 +544,7 @@ async def check_n8n_workflow_health() -> str:
                         }
                     }
                     """
-                    schema_result = await call_boligflow(introspection_query)
+                    schema_result = await call_boligflow(introspection_query, user_credentials=session.env)
                     if "errors" not in schema_result:
                         fields = schema_result.get("data", {}).get("__type", {}).get("fields", [])
                         entry["current_schema_fields"] = [

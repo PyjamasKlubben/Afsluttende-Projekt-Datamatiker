@@ -30,21 +30,17 @@ BASE_URL = os.environ.get("BASE_URL")
 COMPANY = os.environ.get("COMPANY")
 INTEGRATION = os.environ.get("INTEGRATION")
 
-API_KEY = os.environ.get("API_KEY")
-
 # Email Config
 IMAP_SERVER = os.environ.get("IMAP_SERVER", "imap.gmail.com")
 IMAP_PORT = int(os.environ.get("IMAP_PORT", 993))
-EMAIL_USER = os.environ.get("EMAIL_USER", "")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "")
 
 # n8n Config
 N8N_BASE_URL = os.getenv("N8N_BASE_URL", "http://localhost:5678")
-N8N_API_KEY = os.getenv("N8N_API_KEY")
 TEMPLATE_PREFIX = "[TEMPLATE]"
 
 # Query Cache
 CACHE_FILE = Path(__file__).parent / "query_cache.json"
+
 
 
 # --------------------
@@ -146,13 +142,14 @@ def auto_cache_query(query: str, variables: Optional[Dict[str, Any]], result: Di
 # n8n Helper Functions
 # --------------------
 
-async def call_n8n(method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def call_n8n(method: str, path: str, body: Optional[Dict[str, Any]] = None, user_credentials: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Call n8n REST API."""
-    if not N8N_API_KEY:
-        return {"error": "Missing N8N_API_KEY environment variable"}
+    n8n_api_key = (user_credentials or {}).get("N8N_API_KEY")
+    if not n8n_api_key:
+        return {"error": "Missing N8N_API_KEY in credentials service"}
 
     url = f"{N8N_BASE_URL}/api/v1{path}"
-    headers = {"X-N8N-API-KEY": N8N_API_KEY}
+    headers = {"X-N8N-API-KEY": n8n_api_key}
 
     async with httpx.AsyncClient(headers=headers, timeout=30) as client:
         if method == "GET":
@@ -184,15 +181,17 @@ def _is_template(workflow: Dict[str, Any]) -> bool:
 # #TODO - undersøg hvad forskellen er på denne og call_graphql
 #call_graphql kalder denne som helper - derfor begge er nødvendige
 #logikken til caching flyttes ind i helpers og kalder andre metoder gennem denne
-async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None, user_credentials: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Call Boligflow GraphQL API"""
     if not BASE_URL:
         return {"error": "Missing BASE_URL environment variable"}
-    if not API_KEY:
-        return {"error": "Missing API_KEY environment variable"}
+
+    api_key = (user_credentials or {}).get("BOLIGFLOW_API_KEY")
+    if not api_key:
+        return {"error": "Missing BOLIGFLOW_API_KEY in credentials service"}
 
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Company": COMPANY,
         "X-Boligflow-Integration": INTEGRATION,
         "Content-Type": "application/json",
@@ -258,23 +257,27 @@ def create_eml_file(email_data: Dict[str, Any]) -> str:
     return eml_content
 
 
-def get_unread_emails(subject_filter: Optional[str] = None, max_emails: int = 10, search_limit: int = 100) -> tuple[List[Dict[str, Any]], int]:
+def get_unread_emails(email_user: str, email_password: str, subject_filter: Optional[str] = None, max_emails: int = 10, search_limit: int = 100) -> tuple[List[Dict[str, Any]], int]:
     """
     Fetch unread emails from IMAP inbox
-    
+
     Args:
+        email_user: Email address to log in with
+        email_password: Email app password
         subject_filter: Text that should be in subject (None = all unread)
-        sender_filter: Optional email address that should be from sender
         max_emails: Maximum number of emails to return (after filtering)
         search_limit: Maximum number of unread emails to search through (before filtering)
-    
+
     Returns:
         Tuple of (list of email objects, number of emails searched)
     """
     try:
+        if not email_user or not email_password:
+            raise Exception("Missing email credentials")
+
         # Connect to IMAP
         imap = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
-        imap.login(EMAIL_USER, EMAIL_PASSWORD)
+        imap.login(email_user, email_password)
         imap.select("INBOX")
         
         # Search for unread emails
@@ -418,11 +421,14 @@ def get_unread_emails(subject_filter: Optional[str] = None, max_emails: int = 10
         raise Exception(f"Error fetching emails: {str(e)}")
 
 
-def mark_email_as_read(email_id: str):
+def mark_email_as_read(email_id: str, email_user: str = "", email_password: str = ""):
     """Mark an email as read"""
     try:
+        if not email_user or not email_password:
+            raise Exception("Missing email credentials")
+
         imap = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
-        imap.login(EMAIL_USER, EMAIL_PASSWORD)
+        imap.login(email_user, email_password)
         imap.select("INBOX")
         
         # Marker som læst
@@ -438,25 +444,29 @@ def mark_email_as_read(email_id: str):
 
 
 async def upload_email_to_boligflow(
-    record_id: str, 
-    email_data: Dict[str, Any], 
-    fileable_type: str = "Case"
+    record_id: str,
+    email_data: Dict[str, Any],
+    fileable_type: str = "Case",
+    user_credentials: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Upload email to Boligflow using multipart/form-data (matches n8n implementation)
-    
+
     Args:
         record_id: ID of record to attach email to
         email_data: Email data dictionary
         fileable_type: Type of record (Case, Project, etc.)
-    
+        user_credentials: User credentials dict from get_user_env()
+
     Returns:
         API response
     """
     if not BASE_URL:
         return {"error": "Missing BASE_URL environment variable"}
-    if not API_KEY:
-        return {"error": "Missing API_KEY environment variable"}
+
+    api_key = (user_credentials or {}).get("BOLIGFLOW_API_KEY")
+    if not api_key:
+        return {"error": "Missing BOLIGFLOW_API_KEY in credentials service"}
 
     # Prepare operations object
     operations = {
@@ -495,11 +505,11 @@ async def upload_email_to_boligflow(
     }
     
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Company": COMPANY,
         "X-Boligflow-Integration": INTEGRATION,
     }
-    
+
     async with httpx.AsyncClient(headers=headers, timeout=30) as client:
         response = await client.post(
             BASE_URL,
@@ -529,12 +539,15 @@ async def upload_email_to_boligflow(
 async def upload_attachment_to_boligflow(
     record_id: str,
     attachment: Dict[str, Any],
-    fileable_type: str = "Case"
+    fileable_type: str = "Case",
+    user_credentials: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     if not BASE_URL:
         return {"error": "Missing BASE_URL environment variable"}
-    if not API_KEY:
-        return {"error": "Missing API_KEY environment variable"}
+
+    api_key = (user_credentials or {}).get("BOLIGFLOW_API_KEY")
+    if not api_key:
+        return {"error": "Missing BOLIGFLOW_API_KEY in credentials service"}
 
     operations = {
         "query": CREATE_FILE_MUTATION,
@@ -565,7 +578,7 @@ async def upload_attachment_to_boligflow(
     }
 
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Company": COMPANY,
         "X-Boligflow-Integration": INTEGRATION,
     }
@@ -577,6 +590,8 @@ async def upload_attachment_to_boligflow(
 
 
 def get_emails_by_sender(
+    email_user: str,
+    email_password: str,
     sender_filter: Optional[str] = None,
     subject_filter: Optional[str] = None,
     max_emails: int = 20,
@@ -584,20 +599,24 @@ def get_emails_by_sender(
 ) -> tuple[List[Dict[str, Any]], int]:
     """
     Fetch all emails from IMAP inbox filtered by sender and/or subject (read + unread)
-    
+
     Args:
-        subject_filter: Text that should be in subject (None = all unread)
+        email_user: Email address to log in with
+        email_password: Email app password
         sender_filter: Optional email address that should be from sender
+        subject_filter: Text that should be in subject (None = all)
         max_emails: Maximum number of emails to return (after filtering)
-        search_limit: Maximum number of unread emails to search through (before filtering)
-    
+        search_limit: Maximum number of emails to search through (before filtering)
+
     Returns:
         Tuple of (list of email objects, number of emails searched)
     """
     try:
+        if not email_user or not email_password:
+            raise Exception("Missing email credentials")
         # Connect to IMAP
         imap = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
-        imap.login(EMAIL_USER, EMAIL_PASSWORD)
+        imap.login(email_user, email_password)
         imap.select("INBOX")
 
         # Fetch ALL emails (read + unread)
@@ -740,38 +759,27 @@ def get_emails_by_sender(
 # Financial Journal Helper Functions
 # --------------------
 
-
-async def get_accounts(code: Optional[dict] = None) -> str:
-    """
-    Get accounts from Boligflow API.
-    """
+async def get_accounts(user_credentials: Dict[str, Any], code: Optional[dict] = None) -> str:
     variables = {"code": code} if code else None
-    result = await call_boligflow(GET_ACCOUNTS_QUERY, variables)
+    result = await call_boligflow(GET_ACCOUNTS_QUERY, variables, user_credentials)
     return result.get("accounts", [])
 
 
-async def get_dimensionables(dimension_type: str):
+async def get_dimensionables(dimension_type: str, user_credentials: Optional[Dict[str, Any]] = None):
     variables = {"type": dimension_type}
-    result = await call_boligflow(GET_DIMENSIONABLES_QUERY, variables)
+    result = await call_boligflow(GET_DIMENSIONABLES_QUERY, variables, user_credentials)
     return result.get("dimensionables", [])
 
 
-async def get_properties(filter: Optional[dict] = None) -> str:
-    """
-    Get properties from Boligflow API.
-    """
+async def get_properties(user_credentials: Dict[str, Any], filter: Optional[dict] = None) -> str:
     variables = {"filter": filter} if filter else None
-    result = await call_boligflow(GET_PROPERTIES_QUERY, variables)
+    result = await call_boligflow(GET_PROPERTIES_QUERY, variables, user_credentials)
     return result.get("properties", [])
-# {"filter": {"_any":  {"name":  {"eq": "Holmparken 14 (DEMO)"}}}} virker til den query
 
 
-async def get_leases(filter: Optional[dict] = None) -> str:
-    """
-    Get leases from Boligflow API.
-    """
+async def get_leases(user_credentials: Dict[str, Any], filter: Optional[dict] = None) -> str:
     variables = {"filter": filter} if filter else None
-    result = await call_boligflow(GET_LEASES_QUERY, variables)
+    result = await call_boligflow(GET_LEASES_QUERY, variables, user_credentials)
     return result.get("leases", [])
 #{"filter": {"_any": {"floor": {"eq": "st"}}}} virker til den query
 

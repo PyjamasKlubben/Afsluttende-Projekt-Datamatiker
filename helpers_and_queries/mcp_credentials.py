@@ -86,16 +86,18 @@ def _extract_sub(token: str) -> str | None:
         return None
 
 
-async def get_user_env(jwt_token: str) -> dict[str, str]:
+async def get_user_env(jwt_token: str, x_user_sub: str = "") -> dict[str, str]:
     """
-    Fetch all credentials for the user identified by jwt_token.
+    Fetch all credentials for the user identified by jwt_token or x_user_sub.
     Returns a dict of { KEY_NAME: decrypted_value }.
 
-    Kald dette én gang ved session-start og cache resultatet i sessionen.
+    x_user_sub: value of the X-User-Sub header injected by agentgateway (preferred)
+    jwt_token: raw JWT from Authorization header (fallback)
     """
-    sub = _extract_sub(jwt_token)
+    sub = x_user_sub or _extract_sub(jwt_token)
+    print(f"[CREDS DEBUG] x_user_sub={x_user_sub!r:.30} jwt_len={len(jwt_token)} sub={sub!r}", flush=True)
     if not sub:
-        logger.error("Could not extract sub from token – returning empty credentials")
+        logger.error("Could not extract sub – no X-User-Sub header and JWT decode failed. token_preview=%r", jwt_token[:40] if jwt_token else "(empty)")
         return {}
 
     url = f"{CREDENTIALS_SERVICE_URL}/internal/credentials/{sub}"
@@ -131,9 +133,22 @@ class UserSession:
         self.env = env
 
     @classmethod
-    async def create(cls, jwt_token: str) -> "UserSession":
-        env = await get_user_env(jwt_token)
+    async def create(cls, jwt_token: str, x_user_sub: str = "") -> "UserSession":
+        env = await get_user_env(jwt_token, x_user_sub)
         return cls(env)
+
+    @classmethod
+    async def from_headers(cls, headers: dict) -> "UserSession":
+        """Create a UserSession from a request headers dict.
+        Reads X-User-Sub (injected by agentgateway) with JWT parsing as fallback."""
+        x_user_sub = headers.get("x-user-sub", "")
+        # Ignore unevaluated agentgateway template strings (e.g. "%{jwt.sub}", "{{ jwt.sub }}")
+        if x_user_sub.startswith("%{") or x_user_sub.startswith("{{"):
+            print(f"[CREDS DEBUG] X-User-Sub contains unevaluated template: {x_user_sub!r} – check agentgateway config syntax", flush=True)
+            x_user_sub = ""
+        auth = headers.get("authorization", headers.get("Authorization", ""))
+        token = auth.replace("Bearer ", "").replace("bearer ", "")
+        return await cls.create(token, x_user_sub)
 
     def get(self, key: str, default: str | None = None) -> str | None:
         return self.env.get(key, default)

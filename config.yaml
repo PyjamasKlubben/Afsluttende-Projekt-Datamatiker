@@ -38,6 +38,10 @@ binds:
               requestHeaderModifier:
                 add:
                   Accept: "application/json, text/event-stream"
+              transformations:
+                request:
+                  add:
+                    x-user-sub: jwt.sub
               mcpAuthentication:
                 mode: strict
                 issuer: https://auth.petermikkelsen.dk/realms/mcp

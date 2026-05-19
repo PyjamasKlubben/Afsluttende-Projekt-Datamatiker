@@ -7,9 +7,7 @@ from pathlib import Path
 
 import mcp
 from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-
-from utilitytools.utility_tools import call_graphql
+from fastmcp import FastMCP, Context
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -19,9 +17,11 @@ if str(ROOT) not in sys.path:
 try:
     from helpers_and_queries.mcp_tools_queries import CREATE_JOURNAL_ENTRY_MUTATION, GET_ACCOUNTS_QUERY, GET_LEASES_QUERY, GET_PROPERTIES_QUERY
     from helpers_and_queries.mcp_helpers import call_boligflow
+    from helpers_and_queries.mcp_credentials import UserSession
 except ImportError:
     from helpers_and_queries.mcp_tools_queries import CREATE_JOURNAL_ENTRY_MUTATION, GET_ACCOUNTS_QUERY, GET_LEASES_QUERY, GET_PROPERTIES_QUERY
     from helpers_and_queries.mcp_helpers import call_boligflow
+    from helpers_and_queries.mcp_credentials import UserSession
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -34,7 +34,6 @@ BASE_URL = os.environ.get("BASE_URL")
 COMPANY = os.environ.get("COMPANY")
 INTEGRATION = os.environ.get("INTEGRATION")
 
-API_KEY = os.getenv("API_KEY")
 
 
 # --------------------
@@ -50,6 +49,7 @@ mcp = FastMCP("Financial Entry Tools")
 
 @mcp.tool()
 async def create_financial_entry(
+    ctx: Context,
     bilagsdato: str,
     beskrivelse: str,
     beloeb: float,
@@ -149,9 +149,11 @@ async def create_financial_entry(
         }
     }
 
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+
     variables = {"input": input_data}
 
-    result = await call_boligflow(CREATE_JOURNAL_ENTRY_MUTATION, variables)
+    result = await call_boligflow(CREATE_JOURNAL_ENTRY_MUTATION, variables, session.env)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 

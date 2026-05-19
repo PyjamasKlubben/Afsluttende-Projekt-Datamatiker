@@ -5,7 +5,7 @@ import sys
 from typing import Optional
 from pathlib import Path
 from starlette.responses import JSONResponse
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -14,8 +14,10 @@ if str(ROOT) not in sys.path:
 # Import from package when running in Docker, from relative when running locally
 try:
     from helpers_and_queries.mcp_helpers import upload_attachment_to_boligflow, get_unread_emails, mark_email_as_read, upload_email_to_boligflow, get_emails_by_sender
+    from helpers_and_queries.mcp_credentials import UserSession
 except ImportError:
     from helpers_and_queries.mcp_helpers import upload_attachment_to_boligflow, get_unread_emails, mark_email_as_read, upload_email_to_boligflow, get_emails_by_sender
+    from helpers_and_queries.mcp_credentials import UserSession
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -40,13 +42,6 @@ BASE_URL = os.environ.get("BASE_URL")
 COMPANY = os.environ.get("COMPANY")
 INTEGRATION = os.environ.get("INTEGRATION")
 
-API_KEY = os.environ.get("API_KEY")
-
-# Email Config
-IMAP_SERVER = os.environ.get("IMAP_SERVER", "imap.gmail.com")
-IMAP_PORT = int(os.environ.get("IMAP_PORT", 993))
-EMAIL_USER = os.environ.get("EMAIL_USER", "")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "")
 
 
 # --------------------
@@ -61,6 +56,7 @@ mcp = FastMCP("Email Tools")
 
 @mcp.tool()
 async def list_unread_emails(
+    ctx: Context,
     subject_filter: Optional[str] = None,
     max_emails: int = 20,
     search_limit: int = 100
@@ -83,12 +79,15 @@ async def list_unread_emails(
         list_unread_emails(subject_filter="Support", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
     """
     try:
-        # Fetch unread emails (kør synkron IMAP i executor)
+        session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+
         import asyncio
         loop = asyncio.get_event_loop()
         emails, emails_searched = await loop.run_in_executor(
             None,
             get_unread_emails,
+            session.env.get("EMAIL", ""),
+            session.env.get("EMAIL_PASSWORD", ""),
             subject_filter,
             max_emails,
             search_limit
@@ -133,6 +132,7 @@ async def list_unread_emails(
 
 @mcp.tool()
 async def list_emails_by_sender(
+    ctx: Context,
     sender_filter: Optional[str] = None,
     subject_filter: Optional[str] = None,
     max_emails: int = 20,
@@ -145,23 +145,26 @@ async def list_emails_by_sender(
         sender_filter: Optional email address that should be from sender
         max_emails: Maximum number of emails to list - default: 20
         search_limit: Maximum number of unread emails to search through - default: 100
-    
+
     Examples:
-        list_unread_emails()
-        list_unread_emails(subject_filter="Faktura")
-        list_unread_emails(sender_filter="blank@gmail.com")
-        list_unread_emails(subject_filter="Support", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
+        list_emails_by_sender()
+        list_emails_by_sender(subject_filter="Faktura")
+        list_emails_by_sender(sender_filter="blank@gmail.com")
+        list_emails_by_sender(subject_filter="Support", sender_filter="blank@hotmail.com", max_emails=50, search_limit=500)
 
     Returns metadata only.
     """
-
     try:
+        session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+
         import asyncio
         loop = asyncio.get_event_loop()
 
         emails, emails_searched = await loop.run_in_executor(
             None,
             get_emails_by_sender,
+            session.env.get("EMAIL", ""),
+            session.env.get("EMAIL_PASSWORD", ""),
             sender_filter,
             subject_filter,
             max_emails,
@@ -209,6 +212,7 @@ async def list_emails_by_sender(
 
 @mcp.tool()
 async def upload_email_only(
+    ctx: Context,
     record_id: str,
     subject_filter: str,
     fileable_type: str = "Case",
@@ -232,11 +236,15 @@ async def upload_email_only(
         upload_email_only("67890", "Faktura", fileable_type="Project")
     """
     try:
+        session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+
         import asyncio
         loop = asyncio.get_event_loop()
         emails, emails_searched = await loop.run_in_executor(
             None,
             get_unread_emails,
+            session.env.get("EMAIL", ""),
+            session.env.get("EMAIL_PASSWORD", ""),
             subject_filter,
             max_emails,
             search_limit
@@ -257,14 +265,12 @@ async def upload_email_only(
             }
 
             try:
-                # Upload ONLY .eml file
-                result = await upload_email_to_boligflow(record_id, email_data, fileable_type)
+                result = await upload_email_to_boligflow(record_id, email_data, fileable_type, session.env)
                 email_result["eml_upload_result"] = result
                 email_result["success"] = True
 
-                # Mark as read
                 if mark_as_read:
-                    await loop.run_in_executor(None, mark_email_as_read, email_data["id"])
+                    await loop.run_in_executor(None, mark_email_as_read, email_data["id"], session.env.get("EMAIL", ""), session.env.get("EMAIL_PASSWORD", ""))
                     email_result["marked_as_read"] = True
 
             except Exception as e:
@@ -289,6 +295,7 @@ async def upload_email_only(
 
 @mcp.tool()
 async def upload_attachments_only(
+    ctx: Context,
     record_id: str,
     subject_filter: str,
     fileable_type: str = "Case",
@@ -315,10 +322,13 @@ async def upload_attachments_only(
     loop = asyncio.get_event_loop()
 
     try:
-        # Fetch emails
+        session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+
         emails, searched = await loop.run_in_executor(
             None,
             get_unread_emails,
+            session.env.get("EMAIL", ""),
+            session.env.get("EMAIL_PASSWORD", ""),
             subject_filter,
             max_emails,
             search_limit
@@ -340,13 +350,10 @@ async def upload_attachments_only(
                 "uploaded": []
             }
 
-            # Upload each attachment
             for att in email_data["attachments"]:
                 try:
                     upload_result = await upload_attachment_to_boligflow(
-                        record_id,
-                        att,
-                        fileable_type
+                        record_id, att, fileable_type, session.env
                     )
                     email_result["uploaded"].append({
                         "filename": att["filename"],
@@ -360,10 +367,9 @@ async def upload_attachments_only(
                         "error": str(e)
                     })
 
-            # Mark email as read
             if mark_as_read:
                 try:
-                    await loop.run_in_executor(None, mark_email_as_read, email_data["id"])
+                    await loop.run_in_executor(None, mark_email_as_read, email_data["id"], session.env.get("EMAIL", ""), session.env.get("EMAIL_PASSWORD", ""))
                     email_result["marked_as_read"] = True
                 except Exception as e:
                     email_result["marked_as_read"] = False
@@ -389,6 +395,7 @@ async def upload_attachments_only(
 
 @mcp.tool()
 async def upload_email_with_attachments(
+    ctx: Context,
     record_id: str,
     subject_filter: str,
     fileable_type: str = "Case",
@@ -413,11 +420,15 @@ async def upload_email_with_attachments(
         upload_email_with_attachments("99999", "Ordre", search_limit=500)
     """
     try:
+        session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+
         import asyncio
         loop = asyncio.get_event_loop()
         emails, emails_searched = await loop.run_in_executor(
             None,
             get_unread_emails,
+            session.env.get("EMAIL", ""),
+            session.env.get("EMAIL_PASSWORD", ""),
             subject_filter,
             max_emails,
             search_limit
@@ -429,7 +440,6 @@ async def upload_email_with_attachments(
                 "message": f"No unread emails found with subject containing: '{subject_filter}'"
             }, indent=2, ensure_ascii=False)
 
-        # Upload each email AND its attachments
         results = []
 
         for email_data in emails:
@@ -441,15 +451,13 @@ async def upload_email_with_attachments(
             }
 
             try:
-                # 1. Upload .eml file
-                result = await upload_email_to_boligflow(record_id, email_data, fileable_type)
+                result = await upload_email_to_boligflow(record_id, email_data, fileable_type, session.env)
                 email_result["eml_upload_result"] = result
                 email_result["eml_success"] = True
 
-                # 2. Upload attachments for THIS email
                 for att in email_data["attachments"]:
                     try:
-                        att_result = await upload_attachment_to_boligflow(record_id, att, fileable_type)
+                        att_result = await upload_attachment_to_boligflow(record_id, att, fileable_type, session.env)
                         email_result["uploaded_attachments"].append({
                             "filename": att["filename"],
                             "success": True,
@@ -462,9 +470,8 @@ async def upload_email_with_attachments(
                             "error": str(e)
                         })
 
-                # 3. Mark as read
                 if mark_as_read:
-                    await loop.run_in_executor(None, mark_email_as_read, email_data["id"])
+                    await loop.run_in_executor(None, mark_email_as_read, email_data["id"], session.env.get("EMAIL", ""), session.env.get("EMAIL_PASSWORD", ""))
                     email_result["marked_as_read"] = True
 
                 email_result["success"] = True

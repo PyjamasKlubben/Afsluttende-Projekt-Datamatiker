@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from starlette.responses import JSONResponse
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -15,9 +15,11 @@ if str(ROOT) not in sys.path:
 try:
     from helpers_and_queries.mcp_tools_queries import GET_TENANTS_QUERY, GET_TYPES_QUERY, GET_TYPE_DETAILS_QUERY, CREATE_FILE_MUTATION, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY, GET_TYPES_QUERY # CREATE_ORPHANED_FILE_MUTATION
     from helpers_and_queries.mcp_helpers import auto_cache_query, call_boligflow
+    from helpers_and_queries.mcp_credentials import UserSession
 except ImportError:
     from helpers_and_queries.mcp_tools_queries import GET_TENANTS_QUERY, GET_TYPES_QUERY, GET_TYPE_DETAILS_QUERY, CREATE_FILE_MUTATION, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY, GET_TYPES_QUERY #CREATE_ORPHANED_FILE_MUTATION
     from helpers_and_queries.mcp_helpers import auto_cache_query, call_boligflow
+    from helpers_and_queries.mcp_credentials import UserSession
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -30,8 +32,6 @@ BASE_URL = os.environ.get("BASE_URL")
 COMPANY = os.environ.get("COMPANY")
 INTEGRATION = os.environ.get("INTEGRATION")
 
-API_KEY = os.environ.get("API_KEY")
-
 # --------------------
 # MCP Server
 # --------------------
@@ -43,7 +43,7 @@ mcp = FastMCP("Utility Tools")
 # --------------------
 
 @mcp.tool()
-async def call_graphql(query: str, variables: Optional[str] = None) -> str:
+async def call_graphql(ctx: Context, query: str, variables: Optional[str] = None) -> str:
     """
     Run a GraphQL query against Boligflow API.
     Successful queries are automatically saved to cache for future reuse.
@@ -64,69 +64,75 @@ async def call_graphql(query: str, variables: Optional[str] = None) -> str:
         query: A GraphQL query string. Must include an operation name.
         variables: Optional JSON string of variables (e.g. '{"typeName": "Lease"}')
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     parsed_vars = json.loads(variables) if variables else None
-    result = await call_boligflow(query, parsed_vars)
+    result = await call_boligflow(query, parsed_vars, session.env)
     auto_cache_query(query, parsed_vars, result)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
-async def get_types() -> str:
+async def get_types(ctx: Context) -> str:
     """
     Get types from Boligflow API via introspection.
     """
-    result = await call_boligflow(GET_TYPES_QUERY)
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+    result = await call_boligflow(GET_TYPES_QUERY, None, session.env)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
-async def get_details_types(type_name: str) -> str:
+async def get_details_types(ctx: Context, type_name: str) -> str:
     """
     Get details of types from Boligflow API via introspection.
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     variables = {"typeName": type_name}
-    result = await call_boligflow(GET_TYPE_DETAILS_QUERY, variables)
+    result = await call_boligflow(GET_TYPE_DETAILS_QUERY, variables, session.env)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
-async def get_input_type_details(type_name: str) -> str:
+async def get_input_type_details(ctx: Context, type_name: str) -> str:
     """
     Get details about a specific GraphQL input type to understand what fields are required.
     Useful for discovering the correct structure for mutations.
-    
+
     Args:
         type_name: Name of the input type (e.g., "CreateInspectionInput", "CreateFileInput")
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     variables = {"typeName": type_name}
-    result = await call_boligflow(GET_INPUT_TYPE_QUERY, variables)
+    result = await call_boligflow(GET_INPUT_TYPE_QUERY, variables, session.env)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
-async def get_tenants() -> str:
+async def get_tenants(ctx: Context) -> str:
     """
     Get tenants from Boligflow.
     """
-    result = await call_boligflow(GET_TENANTS_QUERY)
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
+    result = await call_boligflow(GET_TENANTS_QUERY, None, session.env)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
 async def create_file(
+    ctx: Context,
     filename: str,
     content_base64: str,
     mime_type: str = "text/plain"
 ) -> str:
     """
     Create/upload a file to Boligflow using the createFile mutation.
-    
+
     Args:
         filename: Name of the file
         content_base64: File content encoded as base64
         mime_type: MIME type (e.g., 'application/pdf', 'image/jpeg', 'text/plain')
     """
-    
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     variables = {
         "input": {
             "filename": filename,
@@ -134,8 +140,7 @@ async def create_file(
             "mime_type": mime_type
         }
     }
-    
-    result = await call_boligflow(CREATE_FILE_MUTATION, variables)
+    result = await call_boligflow(CREATE_FILE_MUTATION, variables, session.env)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
