@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 
 from .mcp_tools_queries import CREATE_FILE_MUTATION, GET_ACCOUNTS_QUERY, GET_DIMENSIONABLES_QUERY, GET_PROPERTIES_QUERY, GET_LEASES_QUERY, GET_TYPES_QUERY, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY
+from .interfaces import BoligflowClient, EmailProvider, QueryCache
 
 import portalocker
 
@@ -204,6 +205,115 @@ async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None,
     async with httpx.AsyncClient(headers=headers, timeout=30) as client:
         response = await client.post(BASE_URL, json=payload) 
         return response.json()
+
+
+# --------------------
+# HttpBoligflowClient — implements BoligflowClient protocol
+# --------------------
+
+#TODO - fungerer ikke som den er nu
+
+class HttpBoligflowClient:
+    """Concrete Boligflow GraphQL client using httpx."""
+
+    def __init__(self):
+        self._headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Company": COMPANY,
+            "X-Boligflow-Integration": INTEGRATION,
+            "Content-Type": "application/json",
+        }
+
+    async def query(
+        self, query: str, variables: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        if not API_KEY:
+            return {"error": "Missing API_KEY environment variable"}
+        if not BASE_URL:
+            return {"error": "Missing BASE_URL environment variable"}
+
+        payload: Dict[str, Any] = {"query": query}
+        if variables:
+            payload["variables"] = variables
+
+        async with httpx.AsyncClient(headers=self._headers, timeout=30) as client:
+            response = await client.post(BASE_URL, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+    async def upload_file(
+        self,
+        record_id: str,
+        file_data: Dict[str, Any],
+        fileable_type: str = "Case",
+    ) -> Dict[str, Any]:
+        """
+        Upload a file to a Boligflow record.
+
+        file_data keys:
+            filename      (str)  - display name
+            content_type  (str)  - MIME type
+            content       (bytes | None) - raw bytes, OR
+            data          (str | None)   - base64-encoded bytes (attachments)
+            eml_content   (str | None)   - raw eml string (email uploads)
+        """
+        if not API_KEY:
+            return {"error": "Missing API_KEY environment variable"}
+        if not BASE_URL:
+            return {"error": "Missing BASE_URL environment variable"}
+
+        operations = {
+            "query": CREATE_FILE_MUTATION,
+            "variables": {
+                "input": {
+                    "file": None,
+                    "type": "CUSTOM",
+                    "fileable": {
+                        "connect": {"type": fileable_type, "id": record_id}
+                    },
+                }
+            },
+        }
+        map_data = {"0": ["variables.input.file"]}
+
+        # Resolve raw bytes
+        if "content" in file_data and file_data["content"] is not None:
+            raw = file_data["content"]
+        elif "eml_content" in file_data:
+            raw = file_data["eml_content"].encode("utf-8")
+        else:
+            raw = base64.b64decode(file_data["data"])
+
+        upload_headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Company": COMPANY,
+            "X-Boligflow-Integration": INTEGRATION,
+        }
+
+        files = {
+            "operations": (None, json.dumps(operations), "application/json"),
+            "map": (None, json.dumps(map_data), "application/json"),
+            "0": (file_data["filename"], raw, file_data["content_type"]),
+        }
+
+        async with httpx.AsyncClient(headers=upload_headers, timeout=30) as client:
+            response = await client.post(BASE_URL, files=files)
+            response_text = response.text
+            response.raise_for_status()
+            result = response.json()
+
+        if "errors" in result:
+            raise Exception(f"GraphQL errors: {json.dumps(result['errors'], indent=2)}")
+
+        if "data" in result and result["data"].get("createFile") is None:
+            raise Exception(f"createFile returned null — upload failed. Response: {response_text}")
+
+        return result
+
+
+# Module-level default instance
+_default_boligflow = HttpBoligflowClient()
+
 
 
 # --------------------
