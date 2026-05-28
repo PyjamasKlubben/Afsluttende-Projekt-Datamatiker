@@ -21,7 +21,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-CREDENTIALS_SERVICE_URL = os.environ["CREDENTIALS_SERVICE_URL"]
+CREDENTIALS_SERVICE_URL = os.environ.get("CREDENTIALS_SERVICE_URL")
 SYSTEM_USER_ID = os.environ.get("SYSTEM_USER_ID", "system")
 
 _CACHE_TTL = 60  # sekunder

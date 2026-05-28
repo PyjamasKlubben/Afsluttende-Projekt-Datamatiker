@@ -1,0 +1,28 @@
+import json
+import pytest
+from unittest.mock import MagicMock
+from fastmcp import Context
+
+from utilitytools.utility_tools import call_graphql, get_tenants, get_types, get_details_types, get_input_type_details, create_file
+
+
+def make_ctx(jwt_token: str) -> MagicMock:
+    ctx = MagicMock(spec=Context)
+    ctx.request_context.request.headers = {
+        "authorization": f"Bearer {jwt_token}"
+    }
+    return ctx
+
+
+JWT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJyMi1wSG1IZ1BnSlZqSGl0SmRfYUx6N3cyUzRzQ2tHTWZ4YU5ERzQwSU80In0.eyJleHAiOjE3Nzk5MDQ2MzcsImlhdCI6MTc3OTg2ODYzNywianRpIjoib25ydHJvOjQ0ZTU1NDRjLWI4MmQtNTFiNy1mNTYwLTg1OTI2ODI3ZGIyMyIsImlzcyI6Imh0dHBzOi8vYXV0aC5wZXRlcm1pa2tlbHNlbi5kay9yZWFsbXMvbWNwIiwiYXVkIjpbImFnZW50Z2F0ZXdheS1jbGllbnQiLCJhY2NvdW50Il0sInN1YiI6IjZlNjI0MGI1LWMwNzUtNDllZC04ZjE4LTI1M2EyOTI0YTgwMSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImFnZW50Z2F0ZXdheS1jbGllbnQiLCJzaWQiOiJxb3JaN18zdDhlaDQ4ckd2dVIzQXlNYlEiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHBzOi8vb2F1dGgucHN0bW4uaW8iXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbImRlZmF1bHQtcm9sZXMtbWNwIiwib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6InRlc3QgdGVzdCIsInByZWZlcnJlZF91c2VybmFtZSI6InRlc3QiLCJnaXZlbl9uYW1lIjoidGVzdCIsImZhbWlseV9uYW1lIjoidGVzdCIsImVtYWlsIjoidGVzdGVydGVzdGVyQHRlc3RlcnRlc3Rlci5kayJ9.ZOnAhj3_5r0iL1s6tcz0xoMnsZo-nEg7pZGpy7oAzc-QV0cA43zzWr-g3G9yHAA3VnGEiF4pJuKMYgXHMXDr8L5dKIUW1yCwuG3mzsL4oGsjon1h1UpGavTtQ68i8PrD66y86tp3bPxG5SMDNXH79JpShW73S1YbHZRoi5Y-Yc-shIHsFQFW8R289WcKcQp2Bh1ONNDyCKnPxUfTCHUpc92MG3vMQ0Wnh-GZ-e0YnJSnc0XAEMGlRuFBcmlXAati8XOPY3QcJ2Cc_0Vhl4_hic6gjm-xScOEuTfqPPTqFu2c14B3x_Xvbx3SWbqbK80Y_1ti-CF-1_AJnwOOBKngZQ"
+
+
+@pytest.mark.asyncio
+async def test_get_tenants():
+    ctx = make_ctx(JWT_TOKEN)
+
+    result = await get_tenants(ctx)
+
+    assert isinstance(result, str)
+    parsed = json.loads(result)
+    assert "data" in parsed
