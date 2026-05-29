@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 
 from .mcp_tools_queries import CREATE_FILE_MUTATION, GET_ACCOUNTS_QUERY, GET_DIMENSIONABLES_QUERY, GET_PROPERTIES_QUERY, GET_LEASES_QUERY, GET_TYPES_QUERY, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY
-from .interfaces import IBoligflowClient
+
 
 import portalocker
 
