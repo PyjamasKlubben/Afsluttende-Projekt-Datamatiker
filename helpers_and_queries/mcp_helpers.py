@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 
 from .mcp_tools_queries import CREATE_FILE_MUTATION, GET_ACCOUNTS_QUERY, GET_DIMENSIONABLES_QUERY, GET_PROPERTIES_QUERY, GET_LEASES_QUERY, GET_TYPES_QUERY, GET_INPUT_TYPE_QUERY, GET_TYPE_DETAILS_QUERY
-from .interfaces import BoligflowClient, EmailProvider, QueryCache
+from .interfaces import IBoligflowClient
 
 import portalocker
 
@@ -41,6 +41,38 @@ TEMPLATE_PREFIX = "[TEMPLATE]"
 
 # Query Cache
 CACHE_FILE = Path(__file__).parent / "query_cache.json"
+
+
+# --------------------
+# Shared Helpers
+# --------------------
+
+#TODO måske skal logikken til caching flyttes ind i helpers og kalde andre metoder gennem denne
+
+async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None, user_credentials: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Call Boligflow GraphQL API"""
+    if not BASE_URL:
+        return {"error": "Missing BASE_URL environment variable"}
+
+    api_key = (user_credentials or {}).get("BOLIGFLOW_API_KEY")
+    if not api_key:
+        return {"error": "Missing BOLIGFLOW_API_KEY in credentials service"}
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Company": COMPANY,
+        "X-Boligflow-Integration": INTEGRATION,
+        "Content-Type": "application/json",
+    }
+
+    payload: Dict[str, Any] = {"query": query}
+    if variables:
+        payload["variables"] = variables
+
+    async with httpx.AsyncClient(headers=headers, timeout=30) as client:
+        response = await client.post(BASE_URL, json=payload) 
+        return response.json()
+
 
 
 
@@ -178,141 +210,6 @@ async def call_n8n(method: str, path: str, body: Optional[Dict[str, Any]] = None
 def _is_template(workflow: Dict[str, Any]) -> bool:
     """Check if a workflow is a protected template."""
     return workflow.get("name", "").startswith(TEMPLATE_PREFIX)
-
-# #TODO - undersøg hvad forskellen er på denne og call_graphql
-#call_graphql kalder denne som helper - derfor begge er nødvendige
-#logikken til caching flyttes ind i helpers og kalder andre metoder gennem denne
-async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None, user_credentials: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Call Boligflow GraphQL API"""
-    if not BASE_URL:
-        return {"error": "Missing BASE_URL environment variable"}
-
-    api_key = (user_credentials or {}).get("BOLIGFLOW_API_KEY")
-    if not api_key:
-        return {"error": "Missing BOLIGFLOW_API_KEY in credentials service"}
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Company": COMPANY,
-        "X-Boligflow-Integration": INTEGRATION,
-        "Content-Type": "application/json",
-    }
-
-    payload: Dict[str, Any] = {"query": query}
-    if variables:
-        payload["variables"] = variables
-
-    async with httpx.AsyncClient(headers=headers, timeout=30) as client:
-        response = await client.post(BASE_URL, json=payload) 
-        return response.json()
-
-
-# --------------------
-# HttpBoligflowClient — implements BoligflowClient protocol
-# --------------------
-
-#TODO - fungerer ikke som den er nu
-
-class HttpBoligflowClient:
-    """Concrete Boligflow GraphQL client using httpx."""
-
-    def __init__(self):
-        self._headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Company": COMPANY,
-            "X-Boligflow-Integration": INTEGRATION,
-            "Content-Type": "application/json",
-        }
-
-    async def query(
-        self, query: str, variables: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        if not API_KEY:
-            return {"error": "Missing API_KEY environment variable"}
-        if not BASE_URL:
-            return {"error": "Missing BASE_URL environment variable"}
-
-        payload: Dict[str, Any] = {"query": query}
-        if variables:
-            payload["variables"] = variables
-
-        async with httpx.AsyncClient(headers=self._headers, timeout=30) as client:
-            response = await client.post(BASE_URL, json=payload)
-            response.raise_for_status()
-            return response.json()
-
-    async def upload_file(
-        self,
-        record_id: str,
-        file_data: Dict[str, Any],
-        fileable_type: str = "Case",
-    ) -> Dict[str, Any]:
-        """
-        Upload a file to a Boligflow record.
-
-        file_data keys:
-            filename      (str)  - display name
-            content_type  (str)  - MIME type
-            content       (bytes | None) - raw bytes, OR
-            data          (str | None)   - base64-encoded bytes (attachments)
-            eml_content   (str | None)   - raw eml string (email uploads)
-        """
-        if not API_KEY:
-            return {"error": "Missing API_KEY environment variable"}
-        if not BASE_URL:
-            return {"error": "Missing BASE_URL environment variable"}
-
-        operations = {
-            "query": CREATE_FILE_MUTATION,
-            "variables": {
-                "input": {
-                    "file": None,
-                    "type": "CUSTOM",
-                    "fileable": {
-                        "connect": {"type": fileable_type, "id": record_id}
-                    },
-                }
-            },
-        }
-        map_data = {"0": ["variables.input.file"]}
-
-        # Resolve raw bytes
-        if "content" in file_data and file_data["content"] is not None:
-            raw = file_data["content"]
-        elif "eml_content" in file_data:
-            raw = file_data["eml_content"].encode("utf-8")
-        else:
-            raw = base64.b64decode(file_data["data"])
-
-        upload_headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Company": COMPANY,
-            "X-Boligflow-Integration": INTEGRATION,
-        }
-
-        files = {
-            "operations": (None, json.dumps(operations), "application/json"),
-            "map": (None, json.dumps(map_data), "application/json"),
-            "0": (file_data["filename"], raw, file_data["content_type"]),
-        }
-
-        async with httpx.AsyncClient(headers=upload_headers, timeout=30) as client:
-            response = await client.post(BASE_URL, files=files)
-            response_text = response.text
-            response.raise_for_status()
-            result = response.json()
-
-        if "errors" in result:
-            raise Exception(f"GraphQL errors: {json.dumps(result['errors'], indent=2)}")
-
-        if "data" in result and result["data"].get("createFile") is None:
-            raise Exception(f"createFile returned null — upload failed. Response: {response_text}")
-
-        return result
-
-
-# Module-level default instance
-_default_boligflow = HttpBoligflowClient()
 
 
 
@@ -908,13 +805,6 @@ async def get_leases(user_credentials: Dict[str, Any], filter: Optional[dict] = 
 # await validate_account(kredit_konto_id)
 
 
-
-# --------------------
-# Utility Helper Functions
-# --------------------
-
-
-
 # --------------------
 # Debug Helper Functions
 # --------------------
@@ -990,3 +880,47 @@ def debug_env_vars() -> str:
         "EMAIL_USER": os.getenv("EMAIL_USER"),
         "EMAIL_PASSWORD": "***" if os.getenv("EMAIL_PASSWORD") else None,
     }, indent=2)
+
+
+class BoligflowConnection:
+    # "Konstruktør"
+    def __init__(self, company_name, integration_name):
+        # Vi henter og tildeler 'token' variablen vores API nøgle fra env. filen
+        self.token = os.getenv("API_KEY")
+
+        # Vi tildeler de sidste 2 værdier som Boligflows API Header forventer (Modtages på nuværende tidspunkt som parameter )
+        self.company_name = company_name
+        self.integration_name = integration_name
+
+        # Vi bygger nu den header boligflows API forventer i en request
+        self.headers = {"Authorization": f"Bearer {self.token}",
+                        "Company": self.company_name,
+                        "X-Boligflow-Integration": self.integration_name,
+                        "Content-Type": "application/json"}
+
+        # Vi tildeler base_url variablen addressen til boligflows API som vi kalder på
+        self.base_url = "https://api.boligflow.dk/graphql"
+
+        # Vi bruger httpx til at lave et asynkront kald og tildeler det vores headers
+        self.client = httpx.AsyncClient(headers=self.headers)
+
+
+    async def connection(self, graphql_query: str) -> Dict[str, Any]:
+        # Vi tildeler en variablen den query vi modtager som str som parameter
+        payload = {"query": graphql_query}
+        # Vi prøver at sende en POST request til boligflow med følgende header og payload(query)
+        try:
+            # Vi gemmer svaret i en variabel og returnere det hvis det lykkes
+            response = await self.client.post(self.base_url, json=payload)
+            # Vi kaster en exception hvis der er HTTP fejl
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            print (f"HTTP Fejl under kaldet til Boligflows API: {e.response.text}")
+            # Vi raiser den så ChatServiceLogic kan fange den
+            raise
+        except Exception as e:
+            # Vi kaster en exception og fanger hvis der er en fejl
+            print(f"Generel fejl i BoligflowConnection klassen/metode: {e}")
+            # Vi raiser den så ChatServiceLogic kan fange den
+            raise

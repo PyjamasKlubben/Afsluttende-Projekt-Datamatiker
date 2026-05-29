@@ -1,4 +1,4 @@
-#base image der indeholder python image og uv version
+#Base image der indeholder python image og uv version
 FROM afsluttende-projekt-base:latest
 
 WORKDIR /app
@@ -6,7 +6,7 @@ WORKDIR /app
 # Kopiér requirements
 COPY requirements.txt .
 
-# Installer dependencies i system-miljøet
+# Installer dependencies
 RUN uv pip install --system --no-build -r requirements.txt
 
 # Kopiér kode
@@ -20,7 +20,7 @@ ENV PYTHONPATH=/app
 
 EXPOSE 3005
 
-# Mere tolerant healthcheck
+# Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3005/health || exit 1
 
