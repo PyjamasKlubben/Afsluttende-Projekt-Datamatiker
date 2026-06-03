@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Side-1" id="mQg9A9UoMAvAaq3Q6v7c">
-    <mxGraphModel dx="1166" dy="791" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1414" dy="1152" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -313,7 +313,7 @@
         <mxCell id="yzO_yPG8gkcTbzuNiNsP-108" parent="yzO_yPG8gkcTbzuNiNsP-106" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" value="16" vertex="1">
           <mxGeometry height="19.320794148380358" width="19.320794148380358" x="389.0476190476191" y="20" as="geometry" />
         </mxCell>
-        <mxCell id="yzO_yPG8gkcTbzuNiNsP-109" parent="yzO_yPG8gkcTbzuNiNsP-106" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Aggregere tool list" vertex="1">
+        <mxCell id="yzO_yPG8gkcTbzuNiNsP-109" parent="yzO_yPG8gkcTbzuNiNsP-106" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Aggregerer tool list" vertex="1">
           <mxGeometry height="30" width="368.57142857142867" x="20.476190476190478" as="geometry" />
         </mxCell>
         <mxCell id="yzO_yPG8gkcTbzuNiNsP-110" connectable="0" parent="1" style="group" value="" vertex="1">
