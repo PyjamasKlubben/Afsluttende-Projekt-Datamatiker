@@ -1,8 +1,3 @@
-"""
-Credentials Service - Per-user encrypted credential storage
-Runs as a sidecar alongside Agentgateway in docker-compose.
-"""
-
 import os
 import sqlite3
 import base64
@@ -23,7 +18,7 @@ from cryptography.hazmat.primitives import hashes
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ── Configuration ────────────────────────────────────────────────────────────
+# Configuration 
 
 ENCRYPTION_KEY_RAW = os.environ["CREDENTIALS_ENCRYPTION_KEY"]
 KEYCLOAK_URL       = os.environ["KEYCLOAK_URL"]          # e.g. http://keycloak:8080
@@ -43,7 +38,7 @@ def _derive_key(raw: str) -> bytes:
 
 AES_KEY = _derive_key(ENCRYPTION_KEY_RAW)
 
-# ── Encryption helpers ────────────────────────────────────────────────────────
+# Encryption helpers 
 
 def encrypt(plaintext: str) -> str:
     aesgcm = AESGCM(AES_KEY)
@@ -57,7 +52,7 @@ def decrypt(ciphertext: str) -> str:
     nonce, ct = raw[:12], raw[12:]
     return aesgcm.decrypt(nonce, ct, None).decode()
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# Database
 
 def get_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -79,7 +74,7 @@ def init_db():
         conn.commit()
     logger.info("Database initialised at %s", DB_PATH)
 
-# ── JWT / Keycloak ────────────────────────────────────────────────────────────
+# JWT / Keycloak
 
 security = HTTPBearer()
 
@@ -100,7 +95,7 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Depends(securit
         logger.error("Keycloak unreachable: %s", e)
         raise HTTPException(status_code=503, detail="Auth service unavailable")
 
-# ── Allowed credentials ───────────────────────────────────────────────────────
+# Allowed credentials
 
 ALLOWED_CREDENTIALS: dict[str, str] = {
     "BOLIGFLOW_API_KEY": "Boligflow API-nøgle",
@@ -109,7 +104,7 @@ ALLOWED_CREDENTIALS: dict[str, str] = {
     "EMAIL_PASSWORD":    "Email-appkode",
 }
 
-# ── Models ────────────────────────────────────────────────────────────────────
+# Models
 
 class CredentialIn(BaseModel):
     key_name: str
@@ -119,7 +114,7 @@ class CredentialOut(BaseModel):
     key_name: str
     created_at: str
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# App 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -128,7 +123,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Credentials Service", lifespan=lifespan)
 
-# ── API endpoints ─────────────────────────────────────────────────────────────
+# API endpoints 
 
 @app.get("/me/credentials", response_model=list[CredentialOut])
 async def list_credentials(claims: dict = Depends(verify_jwt)):
@@ -202,7 +197,7 @@ async def get_credentials_internal(user_id: str, request: Request):
     return {r["key_name"]: decrypt(r["key_value"]) for r in rows}
 
 
-# ── UI ────────────────────────────────────────────────────────────────────────
+# UI 
 
 @app.get("/", response_class=HTMLResponse)
 async def ui():
@@ -210,7 +205,7 @@ async def ui():
         return f.read()
     
 
-# ── OIDC Callback & Config ────────────────────────────────────────────────────
+# OIDC Callback & Config 
  
 KEYCLOAK_PUBLIC_URL = os.environ.get("KEYCLOAK_PUBLIC_URL", KEYCLOAK_URL)
 UI_CLIENT_ID        = os.environ.get("UI_CLIENT_ID", "credentials-ui")
@@ -250,7 +245,6 @@ async def oidc_callback(code: str, request: Request):
             raise HTTPException(status_code=400, detail="Token exchange failed")
  
         access_token = resp.json()["access_token"]
-        # Redirect til UI med tokenet som query param – JS gemmer det i sessionStorage
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url=f"/credentials/?token={access_token}")
  
