@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 # Configuration 
 
 ENCRYPTION_KEY_RAW = os.environ["CREDENTIALS_ENCRYPTION_KEY"]
-KEYCLOAK_URL       = os.environ["KEYCLOAK_URL"]          # e.g. http://keycloak:8080
-KEYCLOAK_REALM     = os.environ["KEYCLOAK_REALM"]        # e.g. myrealm
+KEYCLOAK_URL       = os.environ["KEYCLOAK_URL"]          # http://keycloak:8080
+KEYCLOAK_REALM     = os.environ["KEYCLOAK_REALM"]        # myrealm
 DB_PATH            = os.environ.get("DB_PATH", "/data/credentials.db")
 BASE_DIR           = os.path.dirname(os.path.abspath(__file__))
 
