@@ -1,18 +1,3 @@
-"""
-mcp_credentials.py
-
-Drop dette fil i jeres MCP-server projekt.
-Brug get_user_env() ved session-start for at hente brugerens credentials
-som et dict der kan bruges direkte som miljøvariabler.
-
-Eksempel:
-    from mcp_credentials import get_user_env
-
-    async def handle_session(jwt_token: str):
-        env = await get_user_env(jwt_token)
-        openai_key = env.get("OPENAI_API_KEY")
-"""
-
 import os
 import time
 import logging
@@ -31,7 +16,6 @@ _system_cache_ts: float = 0.0
 
 
 async def get_system_credentials() -> dict[str, str]:
-    """Hent system-credentials fra credentials-servicen (async). Caches i 60 sekunder."""
     global _system_cache, _system_cache_ts
     if _system_cache and time.monotonic() - _system_cache_ts < _CACHE_TTL:
         return _system_cache
@@ -51,7 +35,6 @@ async def get_system_credentials() -> dict[str, str]:
 
 
 def get_system_credentials_sync() -> dict[str, str]:
-    """Hent system-credentials fra credentials-servicen (sync). Caches i 60 sekunder."""
     global _system_cache, _system_cache_ts
     if _system_cache and time.monotonic() - _system_cache_ts < _CACHE_TTL:
         return _system_cache
@@ -71,8 +54,6 @@ def get_system_credentials_sync() -> dict[str, str]:
 
 
 def _extract_sub(token: str) -> str | None:
-    """Decode the 'sub' claim from a JWT without verifying the signature.
-    Verification already happened at Agentgateway / Keycloak level."""
     try:
         import base64, json
         payload_b64 = token.split(".")[1]
@@ -87,13 +68,6 @@ def _extract_sub(token: str) -> str | None:
 
 
 async def get_user_env(jwt_token: str, x_user_sub: str = "") -> dict[str, str]:
-    """
-    Fetch all credentials for the user identified by jwt_token or x_user_sub.
-    Returns a dict of { KEY_NAME: decrypted_value }.
-
-    x_user_sub: value of the X-User-Sub header injected by agentgateway (preferred)
-    jwt_token: raw JWT from Authorization header (fallback)
-    """
     sub = x_user_sub or _extract_sub(jwt_token)
     print(f"[CREDS DEBUG] x_user_sub={x_user_sub!r:.30} jwt_len={len(jwt_token)} sub={sub!r}", flush=True)
     if not sub:
@@ -119,16 +93,6 @@ async def get_user_env(jwt_token: str, x_user_sub: str = "") -> dict[str, str]:
 
 
 class UserSession:
-    """
-    Hjælpeklasse til at holde brugerens credentials i memory
-    for sessionens varighed. Credentials hentes kun én gang.
-
-    Eksempel:
-        session = await UserSession.create(jwt_token)
-        api_key = session.get("OPENAI_API_KEY")
-        # eller brug session.env som et dict
-    """
-
     def __init__(self, env: dict[str, str]):
         self.env = env
 
@@ -139,10 +103,7 @@ class UserSession:
 
     @classmethod
     async def from_headers(cls, headers: dict) -> "UserSession":
-        """Create a UserSession from a request headers dict.
-        Reads X-User-Sub (injected by agentgateway) with JWT parsing as fallback."""
         x_user_sub = headers.get("x-user-sub", "")
-        # Ignore unevaluated agentgateway template strings (e.g. "%{jwt.sub}", "{{ jwt.sub }}")
         if x_user_sub.startswith("%{") or x_user_sub.startswith("{{"):
             print(f"[CREDS DEBUG] X-User-Sub contains unevaluated template: {x_user_sub!r} – check agentgateway config syntax", flush=True)
             x_user_sub = ""
