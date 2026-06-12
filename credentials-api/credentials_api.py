@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 # Configuration 
 
 ENCRYPTION_KEY_RAW = os.environ["CREDENTIALS_ENCRYPTION_KEY"]
-KEYCLOAK_URL       = os.environ["KEYCLOAK_URL"]          # http://keycloak:8080
-KEYCLOAK_REALM     = os.environ["KEYCLOAK_REALM"]        # myrealm
+KEYCLOAK_URL       = os.environ["KEYCLOAK_URL"]
+KEYCLOAK_REALM     = os.environ["KEYCLOAK_REALM"]  
 DB_PATH            = os.environ.get("DB_PATH", "/data/credentials.db")
 BASE_DIR           = os.path.dirname(os.path.abspath(__file__))
 
@@ -79,7 +79,6 @@ def init_db():
 security = HTTPBearer()
 
 async def verify_jwt(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """Validate token against Keycloak's userinfo endpoint and return claims."""
     token = credentials.credentials
     userinfo_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo"
     try:
@@ -127,7 +126,6 @@ app = FastAPI(title="Credentials Service", lifespan=lifespan)
 
 @app.get("/me/credentials", response_model=list[CredentialOut])
 async def list_credentials(claims: dict = Depends(verify_jwt)):
-    """List credential key names for the current user (values never returned)."""
     user_id = claims["sub"]
     with get_db() as conn:
         rows = conn.execute(
@@ -139,13 +137,11 @@ async def list_credentials(claims: dict = Depends(verify_jwt)):
 
 @app.get("/allowed-credentials")
 async def list_allowed_credentials():
-    """Return the list of permitted credential keys and their labels."""
     return [{"key_name": k, "label": v} for k, v in ALLOWED_CREDENTIALS.items()]
 
 
 @app.post("/me/credentials", status_code=201)
 async def upsert_credential(body: CredentialIn, claims: dict = Depends(verify_jwt)):
-    """Create or update a credential for the current user."""
     if body.key_name not in ALLOWED_CREDENTIALS:
         raise HTTPException(status_code=400, detail=f"'{body.key_name}' er ikke en tilladt credential-type")
     user_id = claims["sub"]
@@ -179,11 +175,6 @@ async def delete_credential(key_name: str, claims: dict = Depends(verify_jwt)):
 
 @app.get("/internal/credentials/{user_id}", include_in_schema=False)
 async def get_credentials_internal(user_id: str, request: Request):
-    """
-    Internal endpoint for MCP servers to fetch decrypted credentials.
-    Only accessible from within the docker network (not exposed externally).
-    """
-    # Basic protection: only allow from internal network
     client_host = request.client.host if request.client else None
     if not (client_host.startswith("172.") or client_host.startswith("10.") or client_host == "127.0.0.1") if client_host else None:
         raise HTTPException(status_code=403, detail="Internal endpoint only")
@@ -214,7 +205,6 @@ UI_REDIRECT_URI     = os.environ.get("UI_REDIRECT_URI", "https://auth.petermikke
  
 @app.get("/config")
 async def get_config():
-    """Expose non-secret config to the UI so it can build the OIDC login URL."""
     return {
         "keycloak_url":   KEYCLOAK_PUBLIC_URL,
         "keycloak_realm": KEYCLOAK_REALM,
@@ -225,10 +215,6 @@ async def get_config():
  
 @app.get("/callback")
 async def oidc_callback(code: str, request: Request):
-    """
-    Keycloak redirects here after login with an authorization code.
-    We exchange it for a token and redirect the browser to / with the token.
-    """
     redirect_uri = UI_REDIRECT_URI
     token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
  
