@@ -11,8 +11,6 @@ services:
     depends_on:
       agentgateway:
         condition: service_started
-      utility-tools:
-        condition: service_started
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -74,13 +72,11 @@ services:
       - internal
       - default
 
-
   base:
     build:
       context: .
       dockerfile: Dockerfile.base
     image: afsluttende-projekt-base:latest
-
 
   utility-tools:
     build:
@@ -197,7 +193,6 @@ services:
       retries: 3
       start_period: 10s
     restart: always
-
 
 volumes:
   keycloak_data:
