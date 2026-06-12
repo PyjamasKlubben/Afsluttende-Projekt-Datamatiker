@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# Import from package when running in Docker, from relative when running locally
+# Import from packagee
 try:
     from helpers_and_queries.mcp_helpers import call_boligflow, call_n8n, _is_template
     from helpers_and_queries.mcp_credentials import UserSession
