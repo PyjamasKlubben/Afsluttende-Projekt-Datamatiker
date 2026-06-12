@@ -268,7 +268,6 @@ async def cleanup_cached_queries(ctx: Context) -> str:
             else:
                 validated.append(q)
         except Exception:
-            # Server error - keep the query (might be temporary)
             validated.append(q)
 
     # Save cleaned cache

@@ -21,8 +21,6 @@ import portalocker
 from dotenv import load_dotenv
 load_dotenv()
 
-# #TODO interface til helpers og queries
-
 # --------------------
 # Config
 # --------------------
@@ -46,8 +44,6 @@ CACHE_FILE = Path(__file__).parent / "query_cache.json"
 # --------------------
 # Shared Helpers
 # --------------------
-
-#TODO måske skal logikken til caching flyttes ind i helpers og kalde andre metoder gennem denne
 
 async def call_boligflow(query: str, variables: Optional[Dict[str, Any]] = None, user_credentials: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Call Boligflow GraphQL API"""
@@ -139,7 +135,7 @@ def auto_cache_query(query: str, variables: Optional[Dict[str, Any]], result: Di
     if op_name:
         keywords.append(op_name)
 
-    # Check if a query with the same operation name already exists -> replace it
+    # Check if a query with the same operation name already exists then replace it
     if op_name:
         for i, q in enumerate(cache["queries"]):
             existing_op = _extract_operation_name(q["query"])
