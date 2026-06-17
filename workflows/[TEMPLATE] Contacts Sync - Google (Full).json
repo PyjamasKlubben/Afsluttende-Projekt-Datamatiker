@@ -1,0 +1,393 @@
+{
+  "name": "[TEMPLATE] Contacts Sync - Google (Full)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        -32
+      ],
+      "id": "fbc43611-69b4-4066-a056-998efa625b5e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.boligflow.dk/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "company",
+              "value": "ulrik-hansen-boligflow-demo-8NKQ"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"query { tenants { data { id name email phone address { fullAddress } } } }\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -48,
+        -32
+      ],
+      "id": "5a30b666-052f-4b36-8c0a-f0408d5fc56d",
+      "name": "Boligflow: Hent lejere",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9iDtQLgbfWTPCEXU",
+          "name": "Boligflow API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://people.googleapis.com/v1/people/me/connections",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleContactsOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "personFields",
+              "value": "names,emailAddresses,phoneNumbers,addresses,externalIds"
+            },
+            {
+              "name": "pageSize",
+              "value": "1000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        144,
+        -32
+      ],
+      "id": "8766f349-3b2f-48a6-8305-0fb43a1334dc",
+      "name": "Google: Hent kontakter",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9iDtQLgbfWTPCEXU",
+          "name": "Boligflow API"
+        },
+        "googleContactsOAuth2Api": {
+          "id": "9tvHzuCgVBNmUCdS",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://people.googleapis.com/v1/people:batchCreateContacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleContactsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contacts: $json.contacts }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        160
+      ],
+      "id": "3ffb17f6-4bf4-4129-b42a-66d21c334c50",
+      "name": "Google: Opret kontakter",
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "9tvHzuCgVBNmUCdS",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://people.googleapis.com/v1/people:batchUpdateContacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleContactsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contacts: $json.contacts, updateMask: \"names,emailAddresses,phoneNumbers,addresses,externalIds\" }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        -224
+      ],
+      "id": "968715cd-6adc-47ab-a04f-844bef9ae921",
+      "name": "Google: Opdater kontakter",
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "9tvHzuCgVBNmUCdS",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://people.googleapis.com/v1/people:batchDeleteContacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleContactsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ resourceNames: $json.resourceNames }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        -32
+      ],
+      "id": "2ebdd6ac-569a-4ef5-971c-2967878272af",
+      "name": "Google: Slet kontakter",
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "9tvHzuCgVBNmUCdS",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const to_update = $input.first().json.to_update;\nif (!to_update.length) return [];\n\nconst contacts = {};\nfor (const item of to_update) {\n  contacts[item.resourceName] = {\n    etag: item.etag,\n    names: [{ givenName: item.tenant.name }],\n    emailAddresses: item.tenant.email ? [{ value: item.tenant.email }] : [],\n    phoneNumbers: item.tenant.phone ? [{ value: item.tenant.phone }] : [],\n    addresses: item.tenant.address?.fullAddress ? [{ formattedValue: item.tenant.address.fullAddress }] : [],\n    externalIds: [{ value: item.tenant.id, type: \"boligflow\" }]\n  };\n}\n\nreturn [{ json: { contacts } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -224
+      ],
+      "id": "9abe39e6-2157-484d-8361-da9ba038e9a9",
+      "name": "Byg batch: Update"
+    },
+    {
+      "parameters": {
+        "jsCode": "const to_delete = $input.first().json.to_delete;\nif (!to_delete.length) return [];\n\nreturn [{ json: { resourceNames: to_delete.map(d => d.resourceName) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -32
+      ],
+      "id": "0a79fd94-c558-4d33-8731-9f2c0994372b",
+      "name": "Byg batch: Delete"
+    },
+    {
+      "parameters": {
+        "jsCode": "const to_create = $input.first().json.to_create;\nif (!to_create.length) return [];\n\nconst contacts = to_create.map(t => ({\n  contactPerson: {\n    names: [{ givenName: t.name }],\n    emailAddresses: t.email ? [{ value: t.email }] : [],\n    phoneNumbers: t.phone ? [{ value: t.phone }] : [],\n    addresses: t.address?.fullAddress ? [{ formattedValue: t.address.fullAddress }] : [],\n    externalIds: [{ value: t.id, type: \"boligflow\" }]\n  }\n}));\n\nreturn [{ json: { contacts } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        160
+      ],
+      "id": "d42d1117-e1d2-43c5-9382-b957ca0a305b",
+      "name": "Byg batch: Read"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hent data fra begge noder\nconst tenants = $('Boligflow: Hent lejere').first().json.data.tenants.data\n//.filter(t => t.name !== \"Severin Ebbesen\"); -> DELETE TEST\nconst connections = $('Google: Hent kontakter').first().json.connections || [];\n\n// Byg map: boligflow_id → google kontakt\nconst existingMap = {};\nfor (const contact of connections) {\n  const boligflowId = (contact.externalIds || [])\n    .find(e => e.type === 'boligflow')?.value;\n  if (boligflowId) existingMap[boligflowId] = contact;\n}\n\nconst seenIds = new Set(tenants.map(t => t.id));\nconst to_create = [];\nconst to_update = [];\nconst to_delete = [];\n\nfor (const tenant of tenants) {\n  const existing = existingMap[tenant.id];\n  if (!existing) {\n    to_create.push(tenant);\n  } else {\n    const nameChanged = (existing.names?.[0]?.displayName || '') !== (tenant.name || '');\n    const emailChanged = (existing.emailAddresses?.[0]?.value || '') !== (tenant.email || '');\n    const phoneChanged = (existing.phoneNumbers?.[0]?.value || '') !== (tenant.phone || '');\n    if (nameChanged || emailChanged || phoneChanged) {\n      to_update.push({ resourceName: existing.resourceName, etag: existing.etag, tenant });\n    }\n  }\n}\n\nfor (const contact of connections) {\n  const boligflowId = (contact.externalIds || [])\n    .find(e => e.type === 'boligflow')?.value;\n  if (boligflowId && !seenIds.has(boligflowId)) {\n    to_delete.push({ resourceName: contact.resourceName });\n  }\n}\n\nreturn [{\n  json: {\n    to_create,\n    to_update,\n    to_delete,\n    summary: { create: to_create.length, update: to_update.length, delete: to_delete.length }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -32
+      ],
+      "id": "fe9e15be-1fb1-4d6a-9678-146ce9c190ea",
+      "name": "Sync: Sammenlign"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        256
+      ],
+      "id": "62c2625a-9f96-4c44-9ab1-207ea44c6acd",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "fromEmail": "boligflow@test.dk",
+        "toEmail": "foruser@change.me",
+        "subject": "⚠️ Dit Boligflow workflow er fejlet",
+        "html": "=<table width=\"100%\" style=\"font-family:'lucida sans unicode','lucida grande',sans-serif;\">\n  <tr><td align=\"center\" style=\"padding:20px;\">\n    <img src=\"https://demo.stripocdn.email/content/guids/497a0606-5367-460f-9c9c-8a0b17a753ad/images/image.png\" width=\"180\">\n  </td></tr>\n  <tr><td style=\"padding:20px;\">\n    <h3 style=\"color:#e74c3c;\">Workflow fejlet</h3>\n    <p>Dit workflow <strong>{{ $workflow.name }}</strong> er fejlet.</p>\n    <p>Fejl: {{ $json.error.message }}</p>\n  </td></tr>\n</table>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        256
+      ],
+      "id": "dfd8ee25-9a1a-4163-b6a0-78c2ad0e1306",
+      "name": "Send Error Email",
+      "webhookId": "629a6447-6761-48d8-bdb6-bcd7a94d602c",
+      "credentials": {
+        "smtp": {
+          "id": "mmsaGhUj6tdnVYzt",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🔹 FORMÅL: Synkroniserer Boligflow lejere til Google Contacts (opret + opdatér + slet)\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🛑 STOP — LÆS DETTE FØR DU GØR NOGET\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nDu må IKKE kalde update_n8n_node_param eller konfigurere nogen node\nfør brugeren har bekræftet følgende i denne samtale:\n\n  [ ] ADMIN-EMAIL → modtager af fejlbeskeder (Send Error Email / toEmail)\n                    Dette er IKKE kunden — det er den person der fejlfikser workflows.\n  [ ] GOOGLE CREDENTIAL → er \"Google OAuth2 API\" credential oprettet i n8n?\n\nADMIN-EMAIL kan ikke antages at være den samme som kundens email.\nSpørg eksplicit: \"Hvilken email skal modtage fejlbeskeder hvis workflow fejler?\"\nSkriv i dit svar: \"Jeg bruger ADMIN-EMAIL: ___\" inden du fortsætter.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n📋 KONFIGURATIONSINSTRUKS\n\n1. GOOGLE CREDENTIAL:\n   - Credential type: \"Google OAuth2 API\" i n8n\n   - Kræver Google Cloud projekt med People API aktiveret\n   - Scope: https://www.googleapis.com/auth/contacts\n   - Tilknyt til: \"Google: Hent kontakter\", \"Opret kontakter\", \"Opdatér kontakter\", \"Slet kontakter\"\n\n2. BOLIGFLOW:\n   - Tilknyt \"Boligflow API\" credential til \"Boligflow: Hent lejere\"\n   - Sæt korrekt company slug i company headeren\n\n3. SEND ERROR EMAIL:\n   - toEmail → ADMIN-EMAIL (fra 🛑 STOP-tjekket ovenfor)\n   - ❌ Rør ikke andre felter\n\n4. SCHEDULE TRIGGER:\n   - Sæt kørselstidspunkt (standard: dagligt kl. 06:00)\n\n📌 BEMÆRK:\n   - Boligflow-ID gemmes i externalIds feltet på kontakten til matching — rør ikke dette felt manuelt\n   - Google Contacts API bruger batch-operationer (op til 200 kontakter pr. kald)\n",
+        "height": 288,
+        "width": 368
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -512
+      ],
+      "id": "44600e71-191d-474e-8e9c-ada0bde9b2e9",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Boligflow: Hent lejere",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Boligflow: Hent lejere": {
+      "main": [
+        [
+          {
+            "node": "Google: Hent kontakter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: Hent kontakter": {
+      "main": [
+        [
+          {
+            "node": "Sync: Sammenlign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Byg batch: Update": {
+      "main": [
+        [
+          {
+            "node": "Google: Opdater kontakter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Byg batch: Delete": {
+      "main": [
+        [
+          {
+            "node": "Google: Slet kontakter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Byg batch: Read": {
+      "main": [
+        [
+          {
+            "node": "Google: Opret kontakter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync: Sammenlign": {
+      "main": [
+        [
+          {
+            "node": "Byg batch: Read",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Byg batch: Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Byg batch: Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6a675077-f114-41a1-9330-5e88e77dd1e6",
+  "meta": {
+    "instanceId": "888ca9a2a4ecdec00b2f08d94a9e882378f6b040678d1a8f57a0fe0ce536212d"
+  },
+  "id": "vEvpPNXJPF_5iCMeVZCzT",
+  "tags": []
+}

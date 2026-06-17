@@ -1,0 +1,474 @@
+{
+  "name": "[TEMPLATE] Contacts Sync - Outlook (Full)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        96
+      ],
+      "id": "ab7424b3-b0f8-4882-976a-59ab42bfc83a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.boligflow.dk/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "company",
+              "value": "ulrik-hansen-boligflow-demo-8NKQ"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"{ tenants(first: 200) { data { id name email phone address { address city zip countryCode } } } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        112,
+        96
+      ],
+      "id": "6718c86c-8a9a-4556-bab3-53b641541def",
+      "name": "Boligflow: Hent lejere",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9iDtQLgbfWTPCEXU",
+          "name": "Boligflow API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const BOLIGFLOW_SOURCE = 'boligflow';\n\nconst bfResp = $('Boligflow: Hent lejere').all()[0].json;\nif (bfResp.errors) throw new Error('Boligflow fejl: ' + bfResp.errors.map(e => e.message).join(', '));\nconst lejere = bfResp.data?.tenants?.data || [];\n\nconst kontakter = $('Outlook: Hent kontakter').all()[0].json.value || [];\n\nconst byBfId = {};\nfor (const k of kontakter) {\n  const note = k.personalNotes || '';\n  const match = note.match(/boligflow_id:([^\\s]+)/);\n  if (match) byBfId[match[1]] = k;\n}\n\nconst bfIds = new Set(lejere.map(l => l.id));\nconst result = [];\n\nfor (const lejer of lejere) {\n  const body = {\n    firstName: lejer.name || '',\n    lastName: '',\n    emailAddresses: lejer.email ? [lejer.email] : [],\n    mobilePhone: lejer.phone || '',\n    personalNotes: `boligflow_id:${lejer.id}\n    Adresse: ${lejer.address?.address || ''}, ${lejer.address?.zip || ''} ${lejer.address?.city || ''}`\n  };\n\n  const existing = byBfId[lejer.id];\n  if (existing) {\n    result.push({ json: { action: 'update', contactId: existing.id, body } });\n  } else {\n    result.push({ json: { action: 'create', body } });\n  }\n}\n\nfor (const [bfId, k] of Object.entries(byBfId)) {\n  if (!bfIds.has(bfId)) {\n    result.push({ json: { action: 'delete', contactId: k.id } });\n  }\n}\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        0
+      ],
+      "id": "2575a0c3-d82a-4073-b363-78a27aa941ba",
+      "name": "Sync: Sammenlign"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "81896a47-a652-4d22-b5e5-636583facfd7",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ad7f86ef-5188-438d-a400-1c61dbd48950"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d8778f17-d3f9-4b5e-94a0-dc15dea853ac",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a22ad811-0d07-40f4-a010-27ad1b53b449",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        -16
+      ],
+      "id": "b02cd003-fc03-496a-b0a2-1574118dafaa",
+      "name": "Router"
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "givenName": "={{ $json.body.firstName }}",
+        "additionalFields": {
+          "emailAddresses": {
+            "values": [
+              {
+                "name": "Email",
+                "address": "={{ $json.body.emailAddresses[0] }}"
+              }
+            ]
+          },
+          "mobilePhone": "={{ $json.body.mobilePhone }}",
+          "personalNotes": "={{ $json.body.personalNotes }}"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        -224
+      ],
+      "id": "56c7ec30-aadf-4504-9894-2511f17652d6",
+      "name": "Outlook: Opret kontakt",
+      "webhookId": "173699d1-582b-4a04-994e-a4fb7d80d064",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "w19q5R2XDpaDGkzB",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "update",
+        "contactId": {
+          "__rl": true,
+          "value": "={{ $json.contactId }}",
+          "mode": "id"
+        },
+        "additionalFields": {
+          "emailAddresses": {
+            "values": [
+              {
+                "name": "Email",
+                "address": "={{ $json.body.emailAddresses[0] }}"
+              }
+            ]
+          },
+          "mobilePhone": "={{ $json.body.mobilePhone }}",
+          "givenName": "={{ $json.body.firstName }}",
+          "personalNotes": "={{ $json.body.personalNotes }}"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        0
+      ],
+      "id": "d49819cd-df79-44ab-80dd-07751892d0cf",
+      "name": "Outlook: Opdatér kontakt",
+      "webhookId": "347ab880-e957-4dd9-881b-7e07c73d9f44",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "w19q5R2XDpaDGkzB",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "delete",
+        "contactId": {
+          "__rl": true,
+          "value": "={{ $json.contactId }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        208
+      ],
+      "id": "5052516c-9156-4e57-be83-779fd3e6a73f",
+      "name": "Outlook — Slet kontakt",
+      "webhookId": "16ad6de3-5263-4808-9da4-5326aee3b12a",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "w19q5R2XDpaDGkzB",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        496
+      ],
+      "id": "5d6fd2fc-1523-403b-ab9a-162e3a2fe4ca",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "fromEmail": "boligflow@test.dk",
+        "toEmail": "foruser@change.me",
+        "subject": "⚠️ Dit Boligflow workflow er fejlet",
+        "html": "=<table width=\"100%\" style=\"font-family:'lucida sans unicode','lucida grande',sans-serif;\">\n  <tr><td align=\"center\" style=\"padding:20px;\">\n    <img src=\"https://demo.stripocdn.email/content/guids/497a0606-5367-460f-9c9c-8a0b17a753ad/images/image.png\" width=\"180\">\n  </td></tr>\n  <tr><td style=\"padding:20px;\">\n    <h3 style=\"color:#e74c3c;\">Workflow fejlet</h3>\n    <p>Dit workflow <strong>{{ $workflow.name }}</strong> er fejlet.</p>\n    <p>Fejl: {{ $json.error.message }}</p>\n  </td></tr>\n</table>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        496
+      ],
+      "id": "53cede80-1a99-4a40-ad8b-08a8e5eb3c6c",
+      "name": "Send Error Email",
+      "webhookId": "629a6447-6761-48d8-bdb6-bcd7a94d602c",
+      "credentials": {
+        "smtp": {
+          "id": "mmsaGhUj6tdnVYzt",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://graph.microsoft.com/v1.0/me/contactFolders/contacts/contacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "microsoftOutlookOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "$select",
+              "value": "id,displayName,givenName,surname,emailAddresses,mobilePhone,personalNotes"
+            },
+            {
+              "name": "$top",
+              "value": "1000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        224
+      ],
+      "id": "13d5c355-4a9f-46d9-8e0a-d4f272a9be2c",
+      "name": "Outlook: Hent kontakter",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "w19q5R2XDpaDGkzB",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🔹 FORMÅL: Synkroniserer Boligflow lejere til Microsoft Outlook/365 kontakter (opret + opdatér + slet)\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🛑 STOP — LÆS DETTE FØR DU GØR NOGET\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nDu må IKKE kalde update_n8n_node_param eller konfigurere nogen node\nfør brugeren har bekræftet følgende i denne samtale:\n\n  [ ] ADMIN-EMAIL → modtager af fejlbeskeder (Send Error Email / toEmail)\n                    Dette er IKKE kunden — det er den person der fejlfikser workflows.\n  [ ] MICROSOFT CREDENTIAL → er \"Microsoft Outlook OAuth2 API\" credential oprettet i n8n?\n\nADMIN-EMAIL kan ikke antages at være den samme som kundens email.\nSpørg eksplicit: \"Hvilken email skal modtage fejlbeskeder hvis workflow fejler?\"\nSkriv i dit svar: \"Jeg bruger ADMIN-EMAIL: ___\" inden du fortsætter.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n📋 KONFIGURATIONSINSTRUKS\n\n1. MICROSOFT CREDENTIAL:\n   - Credential type: \"Microsoft Outlook OAuth2 API\" i n8n\n   - Kræver Azure App Registration med Contacts.ReadWrite permission\n   - Redirect URI i Azure: http://localhost:5678/rest/oauth2-credential/callback\n   - Tilknyt til: \"Outlook: Hent kontakter\", \"Opret kontakt\", \"Opdatér kontakt\", \"Slet kontakt\"\n\n2. BOLIGFLOW:\n   - Tilknyt \"Boligflow API\" credential til \"Boligflow: Hent lejere\"\n   - Sæt korrekt company slug i company headeren\n\n3. SEND ERROR EMAIL:\n   - toEmail → ADMIN-EMAIL (fra 🛑 STOP-tjekket ovenfor)\n   - ❌ Rør ikke andre felter\n\n4. SCHEDULE TRIGGER:\n   - Sæt kørselstidspunkt (standard: dagligt kl. 06:00)\n\n📌 BEMÆRK:\n   - Boligflow-ID gemmes i personalNotes til matching — rør ikke dette felt manuelt\n   - Adresse gemmes i personalNotes (n8n's Outlook node understøtter ikke adressefelter)\n   - Outlook API er langsom — vent 1-2 min før du tjekker resultater\n",
+        "height": 320,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -448
+      ],
+      "id": "8c32d68a-1f40-4027-a9a8-51dee373212a",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Boligflow: Hent lejere",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Boligflow: Hent lejere": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Outlook: Hent kontakter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Sync: Sammenlign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync: Sammenlign": {
+      "main": [
+        [
+          {
+            "node": "Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router": {
+      "main": [
+        [
+          {
+            "node": "Outlook: Opret kontakt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Outlook: Opdatér kontakt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Outlook — Slet kontakt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook: Hent kontakter": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Outlook: Opret kontakt": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ca2142f5-0834-45f0-844a-5291b3ea16d4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "888ca9a2a4ecdec00b2f08d94a9e882378f6b040678d1a8f57a0fe0ce536212d"
+  },
+  "id": "7YgJmTc7-oDlZxr73pIai",
+  "tags": []
+}

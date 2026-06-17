@@ -1,0 +1,27 @@
+#Base image der indeholder python image og uv version
+FROM afsluttende-projekt-base:latest
+
+WORKDIR /app
+
+# Kopiér requirements
+COPY requirements.txt .
+
+# Installer dependencies
+RUN uv pip install --system --no-build -r requirements.txt
+
+# Kopiér kode
+COPY helpers_and_queries/ ./helpers_and_queries/
+COPY n8n-workflow-tools/n8n_workflow_tools.py .
+
+# Environment variabler
+ENV PORT=3001
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+EXPOSE 3001
+
+# Healthcheck
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+CMD ["python", "-u", "n8n_workflow_tools.py"]

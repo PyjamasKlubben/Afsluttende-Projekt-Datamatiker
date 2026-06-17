@@ -1,0 +1,204 @@
+services:
+  nginx:
+    image: nginx:1.30.0
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d/
+      - letsencrypt:/etc/letsencrypt/
+    depends_on:
+      agentgateway:
+        condition: service_started
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command: start-dev
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: "https://auth.petermikkelsen.dk"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  agentgateway:
+    container_name: agentgateway
+    restart: unless-stopped
+    image: cr.agentgateway.dev/agentgateway:v1.1.0
+    ports:
+      - "3000:3000"
+      - "127.0.0.1:15000:15000"
+    volumes:
+      - ./config.yaml:/config.yaml
+    environment:
+      - ADMIN_ADDR=0.0.0.0:15000
+      - OIDC_ISSUER=https://auth.petermikkelsen.dk/realms/mcp
+      - OIDC_JWKS_URL=http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
+    command: ["-f", "/config.yaml"]
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      utility-tools:
+        condition: service_started
+
+  credentials-service:
+    build:
+      context: .
+      dockerfile: credentials-api/Dockerfile.credentials-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+      - DB_PATH=/data/credentials.db
+    volumes:
+      - credentials_data:/data
+    expose:
+      - "8001"
+    networks:
+      - internal
+      - default
+
+  base:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    image: afsluttende-projekt-base:latest
+
+  utility-tools:
+    build:
+      context: .
+      dockerfile: utilitytools/Dockerfile.utility-tools
+    container_name: utility-tools
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      - PORT=3003
+      - PYTHONUNBUFFERED=1
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
+    depends_on:
+      - base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  financial-entry-tools:
+    build:
+      context: .
+      dockerfile: financial-entry-tools/Dockerfile.financial-tools
+    container_name: financial-entry-tools
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env
+    environment:
+      - PORT=3002
+      - PYTHONUNBUFFERED=1
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
+    depends_on:
+      - base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  email-tools:
+    build:
+      context: .
+      dockerfile: email-tools/Dockerfile.email-tools
+    container_name: email-tools
+    ports:
+      - "3005:3005"
+    env_file:
+      - .env
+    environment:
+      - PORT=3005
+      - PYTHONUNBUFFERED=1
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
+    depends_on:
+      - base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  cache-query-tools:
+    build:
+      context: .
+      dockerfile: cache-tools/Dockerfile.cache-query-tools
+    container_name: cache-query-tools
+    ports:
+      - "3004:3004"
+    env_file:
+      - .env
+    environment:
+      - PORT=3004
+      - PYTHONUNBUFFERED=1
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
+    depends_on:
+      - base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  n8n-workflow-tools:
+    build:
+      context: .
+      dockerfile: n8n-workflow-tools/Dockerfile.n8n-workflow-tools
+    container_name: n8n-workflow-tools
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      - PORT=3001
+      - PYTHONUNBUFFERED=1
+      - CREDENTIALS_SERVICE_URL=http://credentials-service:8001
+      - N8N_BASE_URL=http://n8n:5678
+    depends_on:
+      - base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+volumes:
+  keycloak_data:
+  letsencrypt:
+  credentials_data:
+
+networks:
+  internal:
+    driver: bridge

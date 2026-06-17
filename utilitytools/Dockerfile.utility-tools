@@ -1,0 +1,27 @@
+#Base image der indeholder python image og uv version
+FROM afsluttende-projekt-base:latest
+
+WORKDIR /app
+
+# Kopiér requirements
+COPY requirements.txt .
+
+# Installer dependencies
+RUN uv pip install --system --no-build -r requirements.txt
+
+# Kopiér kode
+COPY helpers_and_queries/ ./helpers_and_queries/
+COPY utilitytools/utility_tools.py .
+
+# Environment variabler
+ENV PORT=3003
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+EXPOSE 3003
+
+# Healthcheck
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3003/health || exit 1
+
+CMD ["python", "-u", "utility_tools.py"]
