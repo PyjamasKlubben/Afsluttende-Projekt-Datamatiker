@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "queries": [
+    {
+      "id": "IntrospectLease",
+      "description": "Auto-cached: IntrospectLease",
+      "intent_keywords": [
+        "IntrospectLease"
+      ],
+      "query": "query IntrospectLease {\n  __type(name: \"Lease\") {\n    name\n    fields {\n      name\n      type {\n        name\n        kind\n        ofType { name kind }\n      }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 3
+    },
+    {
+      "id": "IntrospectLeaseAgreement",
+      "description": "Auto-cached: IntrospectLeaseAgreement",
+      "intent_keywords": [
+        "IntrospectLeaseAgreement"
+      ],
+      "query": "query IntrospectLeaseAgreement {\n  __type(name: \"LeaseAgreement\") {\n    name\n    fields {\n      name\n      type {\n        name\n        kind\n        ofType { name kind }\n      }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 2
+    },
+    {
+      "id": "GetLeaseAgreementsWithCancellation",
+      "description": "Auto-cached: GetLeaseAgreementsWithCancellation",
+      "intent_keywords": [
+        "leaseAgreements",
+        "GetLeaseAgreementsWithCancellation"
+      ],
+      "query": "query GetLeaseAgreementsWithCancellation {\n  leaseAgreements(first: 100, page: 1) {\n    paginatorInfo { total currentPage lastPage }\n    data {\n      id\n      fullSerialNumber\n      cancelDate\n      vacatingDate\n      status\n      cancellationReceivedAt\n      terminationReason\n      externalTenant {\n        name\n      }\n      lease {\n        fullAddress\n      }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 2
+    },
+    {
+      "id": "auto-4f7e269fcc",
+      "description": "Auto-cached: __type",
+      "intent_keywords": [],
+      "query": "\n    query {\n          __type(name: \"Query\") {\n            name\n            fields {\n              name\n              type {\n                name\n                kind\n                ofType {\n                  name\n                  kind\n                }\n              }\n            }\n          }\n        }\n    ",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetLeaseFields",
+      "description": "Auto-cached: GetLeaseFields",
+      "intent_keywords": [
+        "GetLeaseFields"
+      ],
+      "query": "query GetLeaseFields {\n  __type(name: \"Lease\") {\n    fields {\n      name\n      type { name kind }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetLeaseAgreementFields",
+      "description": "Auto-cached: GetLeaseAgreementFields",
+      "intent_keywords": [
+        "GetLeaseAgreementFields"
+      ],
+      "query": "query GetLeaseAgreementFields {\n  __type(name: \"LeaseAgreement\") {\n    fields { name type { name kind } }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetHolmparkenLeases",
+      "description": "Auto-cached: GetHolmparkenLeases",
+      "intent_keywords": [
+        "leases",
+        "GetHolmparkenLeases"
+      ],
+      "query": "query GetHolmparkenLeases {\n  leases(first: 100, page: 1) {\n    data {\n      id\n      street\n      streetNumber\n      fullAddress\n      currentOrNextLeaseAgreement {\n        id\n        startDate\n        status\n        tenants {\n          name\n          email\n          phone\n        }\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetPropertyMetafields",
+      "description": "Auto-cached: GetPropertyMetafields",
+      "intent_keywords": [
+        "properties",
+        "GetPropertyMetafields"
+      ],
+      "query": "query GetPropertyMetafields {\n  properties(first: 50, page: 1) {\n    data {\n      id\n      name\n      metafields {\n        key\n        value\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetUpcomingMoveIns",
+      "description": "Auto-cached: GetUpcomingMoveIns",
+      "intent_keywords": [
+        "leaseAgreements",
+        "GetUpcomingMoveIns"
+      ],
+      "query": "query GetUpcomingMoveIns {\n  leaseAgreements(first: 100, page: 1) {\n    data {\n      id\n      startDate\n      status\n      lease {\n        fullAddress\n        street\n        streetNumber\n      }\n      tenants {\n        name\n        email\n        phone\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetProperties",
+      "description": "Auto-cached: GetProperties",
+      "intent_keywords": [
+        "properties",
+        "GetProperties"
+      ],
+      "query": "query GetProperties {\n  properties(first: 50, page: 1) {\n    data {\n      id\n      name\n      metafields {\n        key\n        value\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetHolmparken14Leases",
+      "description": "Auto-cached: GetHolmparken14Leases",
+      "intent_keywords": [
+        "leases",
+        "GetHolmparken14Leases"
+      ],
+      "query": "query GetHolmparken14Leases {\n  leases(first: 100, page: 1, filter: { street: { eq: \"Holmparken\" }, streetNumber: { eq: \"14\" } }) {\n    data {\n      id\n      fullAddress\n      currentOrNextLeaseAgreement {\n        id\n        startDate\n        status\n        tenants {\n          name\n          email\n          phone\n        }\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 2
+    },
+    {
+      "id": "GetHolmparken18Full",
+      "description": "Auto-cached: GetHolmparken18Full",
+      "intent_keywords": [
+        "properties",
+        "GetHolmparken18Full"
+      ],
+      "query": "query GetHolmparken18Full {\n  properties(first: 10, page: 1) {\n    data {\n      id\n      name\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "InspectLeaseAgreement",
+      "description": "Auto-cached: InspectLeaseAgreement",
+      "intent_keywords": [
+        "InspectLeaseAgreement"
+      ],
+      "query": "query InspectLeaseAgreement {\n  __type(name: \"LeaseAgreement\") {\n    fields {\n      name\n      type { name kind ofType { name kind } }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "InspectRentInformation",
+      "description": "Auto-cached: InspectRentInformation",
+      "intent_keywords": [
+        "InspectRentInformation"
+      ],
+      "query": "query InspectRentInformation {\n  __type(name: \"RentInformation\") {\n    fields {\n      name\n      type { name kind ofType { name kind } }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "InspectTenant",
+      "description": "Auto-cached: InspectTenant",
+      "intent_keywords": [
+        "InspectTenant"
+      ],
+      "query": "query InspectTenant {\n  __type(name: \"Tenant\") {\n    fields {\n      name\n      type { name kind ofType { name kind } }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "InspectBalances",
+      "description": "Auto-cached: InspectBalances",
+      "intent_keywords": [
+        "InspectBalances"
+      ],
+      "query": "query InspectBalances {\n  __type(name: \"LeaseAgreementBalances\") {\n    fields { name type { name kind ofType { name kind } } }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetActiveLeaseAgreements",
+      "description": "Auto-cached: GetActiveLeaseAgreements",
+      "intent_keywords": [
+        "leaseAgreements",
+        "GetActiveLeaseAgreements"
+      ],
+      "query": "query GetActiveLeaseAgreements {\n  leaseAgreements(first: 100, page: 1) {\n    data {\n      id\n      status\n      startDate\n      endDate\n      lease {\n        fullAddress\n      }\n      tenants {\n        name\n        email\n        phone\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "IntrospectRentInformation",
+      "description": "Auto-cached: IntrospectRentInformation",
+      "intent_keywords": [
+        "IntrospectRentInformation"
+      ],
+      "query": "query IntrospectRentInformation {\n  __type(name: \"RentInformation\") {\n    name\n    fields {\n      name\n      type { name kind ofType { name kind } }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetLeasesForAccountant",
+      "description": "Auto-cached: GetLeasesForAccountant",
+      "intent_keywords": [
+        "leases",
+        "GetLeasesForAccountant"
+      ],
+      "query": "query GetLeasesForAccountant {\n  leases(first: 100, page: 1) {\n    data {\n      id\n      fullAddress\n      status\n      currentOrNextLeaseAgreement {\n        id\n        status\n        startDate\n        endDate\n        tenants {\n          name\n          email\n          phone\n        }\n        rentInformation {\n          rent\n          aconto\n          other\n          total\n        }\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetCancelledAgreements",
+      "description": "Auto-cached: GetCancelledAgreements",
+      "intent_keywords": [
+        "leaseAgreements",
+        "GetCancelledAgreements"
+      ],
+      "query": "query GetCancelledAgreements {\n  leaseAgreements(first: 100, page: 1) {\n    data {\n      id\n      status\n      startDate\n      endDate\n      cancelDate\n      cancellationReceivedAt\n      terminationReason\n      lease {\n        id\n        fullAddress\n      }\n      tenants {\n        name\n        email\n        phone\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetPropertyFields",
+      "description": "Auto-cached: GetPropertyFields",
+      "intent_keywords": [
+        "GetPropertyFields"
+      ],
+      "query": "query GetPropertyFields {\n  __type(name: \"Property\") {\n    fields {\n      name\n      type { name kind ofType { name } }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetContactFields",
+      "description": "Auto-cached: GetContactFields",
+      "intent_keywords": [
+        "GetContactFields"
+      ],
+      "query": "query GetContactFields {\n  __type(name: \"Contact\") {\n    fields { name type { name kind } }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetHolmparken14Property",
+      "description": "Auto-cached: GetHolmparken14Property",
+      "intent_keywords": [
+        "properties",
+        "GetHolmparken14Property"
+      ],
+      "query": "query GetHolmparken14Property {\n  properties(first: 50, page: 1) {\n    data {\n      id\n      name\n      contacts {\n        id\n        name\n        companyName\n        email\n        phone\n        label\n        notes\n      }\n    }\n    paginatorInfo { total currentPage lastPage }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "GetHolmparken14Metafields",
+      "description": "Auto-cached: GetHolmparken14Metafields",
+      "intent_keywords": [
+        "properties",
+        "GetHolmparken14Metafields"
+      ],
+      "query": "query GetHolmparken14Metafields {\n  properties(first: 10, page: 1) {\n    data {\n      id\n      name\n      metafields {\n        key\n        value\n      }\n    }\n  }\n}",
+      "variables": null,
+      "created_at": "2026-02-19",
+      "last_used": "2026-02-19",
+      "use_count": 1
+    },
+    {
+      "id": "getTypes",
+      "description": "Auto-cached: getTypes",
+      "intent_keywords": [
+        "getTypes"
+      ],
+      "query": "\n    query getTypes {\n          __type(name: \"Query\") {\n            name\n            fields {\n              name\n              type {\n                name\n                kind\n                ofType {\n                  name\n                  kind\n                }\n              }\n            }\n          }\n        }\n    ",
+      "variables": null,
+      "created_at": "2026-02-23",
+      "last_used": "2026-02-23",
+      "use_count": 1
+    }
+  ]
+}
