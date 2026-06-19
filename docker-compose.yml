@@ -169,6 +169,25 @@ services:
       retries: 3
       start_period: 10s
     restart: always
+    volumes:
+      - cache_data:/app/helpers_and_queries
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-dev
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Europe/Copenhagen
+      - TZ=Europe/Copenhagen
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
+      - N8N_RUNNERS_ENABLED=false
+      - N8N_SECURE_COOKIE=false
+      - N8N_USER_MANAGEMENT_DISABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
 
   n8n-workflow-tools:
     build:
@@ -198,6 +217,8 @@ volumes:
   keycloak_data:
   letsencrypt:
   credentials_data:
+  cache_data:
+  n8n_data:
 
 networks:
   internal:

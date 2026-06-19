@@ -85,7 +85,7 @@ async def search_cached_queries(search_text: str) -> str:
 
 
 @mcp.tool()
-async def execute_cached_query(query_id: str, variables: Optional[str] = None) -> str:
+async def execute_cached_query(ctx: Context, query_id: str, variables: Optional[str] = None) -> str:
     """
     Execute a cached query by its ID. Updates usage statistics.
     If a query fails with a GraphQL error, it is automatically removed from cache.
@@ -95,6 +95,7 @@ async def execute_cached_query(query_id: str, variables: Optional[str] = None) -
         query_id: The ID of the cached query (e.g. "get-tenants-basic")
         variables: Optional JSON string of variables (e.g. '{"typeName": "Lease"}')
     """
+    session = await UserSession.from_headers(dict(ctx.request_context.request.headers))  # type: ignore[union-attr]
     cache = load_cache()
     query_entry = None
 
@@ -113,7 +114,7 @@ async def execute_cached_query(query_id: str, variables: Optional[str] = None) -
         parsed_vars = query_entry["variables"]
 
     try:
-        result = await call_boligflow(query_entry["query"], parsed_vars)
+        result = await call_boligflow(query_entry["query"], parsed_vars, session.env)
     except Exception as e:
         # HTTP/network error (server-side) - don't count as query failure
         return json.dumps({"error": f"Server error (not a query problem): {str(e)}"}, indent=2)
